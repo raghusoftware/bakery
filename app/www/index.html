@@ -201,11 +201,23 @@ body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 20px;color:var(--muted);text-align:center}
 .empty .e-icon{font-size:56px;opacity:.35}
 .empty p{font-size:15px;margin:0}
-/* ─ Receipt print ─ */
+/* ─ Receipt Viewer ─ */
+#receipt-overlay{position:fixed;inset:0;background:#555;z-index:3000;display:none;flex-direction:column}
+#receipt-overlay.show{display:flex}
+#receipt-topbar{background:#2C3E50;color:#fff;height:56px;display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0}
+#receipt-topbar h2{flex:1;font-size:16px;margin:0}
+.receipt-action-btn{height:38px;padding:0 14px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px}
+.receipt-action-btn.print{background:#FF6B35;color:#fff}
+.receipt-action-btn.close{background:rgba(255,255,255,.2);color:#fff}
+#receipt-frame-wrap{flex:1;overflow-y:auto;display:flex;justify-content:center;padding:16px;background:#555}
+#receipt-content{background:#fff;padding:16px;min-width:260px;max-width:320px;width:100%;font-family:'Courier New',monospace;font-size:12px;line-height:1.5;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+/* ─ Print media ─ */
 @media print{
-  body *{visibility:hidden}
-  #receipt-print,#receipt-print *{visibility:visible}
-  #receipt-print{position:fixed;top:0;left:0;width:100%;font-family:'Courier New',monospace;font-size:11px;background:#fff;color:#000}
+  body>*:not(#receipt-overlay){display:none!important}
+  #receipt-overlay{position:static!important;background:#fff!important;display:block!important}
+  #receipt-topbar{display:none!important}
+  #receipt-frame-wrap{background:#fff!important;padding:0!important;overflow:visible!important}
+  #receipt-content{box-shadow:none!important;max-width:100%!important;font-size:11px}
 }
 /* ─ Scanning overlay ─ */
 #scan-overlay{position:fixed;inset:0;background:#000;z-index:2000;display:none;flex-direction:column;align-items:center;justify-content:center}
@@ -538,8 +550,17 @@ body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:
   <p style="color:#fff;margin-top:16px;font-size:15px;font-weight:600">Point camera at barcode</p>
 </div>
 
-<!-- Receipt Print Template -->
-<div id="receipt-print" style="display:none"></div>
+<!-- Receipt Viewer Overlay -->
+<div id="receipt-overlay">
+  <div id="receipt-topbar">
+    <h2>🧾 Receipt</h2>
+    <button class="receipt-action-btn print" onclick="printReceiptNow()">🖨️ Print / Save PDF</button>
+    <button class="receipt-action-btn close" onclick="closeReceipt()">✕ Close</button>
+  </div>
+  <div id="receipt-frame-wrap">
+    <div id="receipt-content"></div>
+  </div>
+</div>
 
 <div id="toasts"></div>
 
@@ -1143,42 +1164,67 @@ function newSale() {
 // ═══════════════════════════════════════════════════════════
 //  PRINT / SHARE
 // ═══════════════════════════════════════════════════════════
-function buildReceiptHTML(sale) {
-  const w = (ST.settings.paper==='58')?'220px':'302px';
-  const items=sale.items.map(i=>`<tr><td>${i.name}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">₹${parseFloat(i.unit_price).toFixed(2)}</td><td style="text-align:right">₹${parseFloat(i.total).toFixed(2)}</td></tr>`).join('');
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:11px;width:${w};padding:4px}
-.c{text-align:center}.b{font-weight:bold}.big{font-size:14px;font-weight:bold}hr{border:none;border-top:1px dashed #000;margin:4px 0}
-table{width:100%;border-collapse:collapse}td{padding:1px 2px}
-.tf{font-size:13px;font-weight:bold;border-top:1px dashed #000;padding-top:4px}</style></head>
-<body>
-<div class="c big">${sale.store.name||'BAKERY'}</div>
-<div class="c">${sale.store.address||''}</div>
-<div class="c">Ph: ${sale.store.phone||''}</div>
-<hr><div>Invoice: <b>${sale.invoice_no}</b></div>
-<div>Date: ${sale.date_str}</div>
-<div>Customer: ${sale.customer_name}</div>
-<hr><table><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amt</th></tr></thead>
-<tbody>${items}</tbody></table><hr>
-<table>
-<tr><td>Subtotal</td><td></td><td></td><td style="text-align:right">₹${sale.subtotal.toFixed(2)}</td></tr>
-${sale.discount>0?`<tr><td>Discount</td><td></td><td></td><td style="text-align:right">-₹${sale.discount.toFixed(2)}</td></tr>`:''}
-<tr><td>GST (${sale.gst_percent}%)</td><td></td><td></td><td style="text-align:right">₹${sale.gst_amount.toFixed(2)}</td></tr>
-<tr><td colspan="3" class="tf">NET AMOUNT</td><td class="tf" style="text-align:right">₹${sale.total.toFixed(2)}</td></tr>
-</table><hr>
-<div>Payment: <b>${sale.payment_mode}</b></div>
-${sale.change_amount>0?`<div>Change: ₹${sale.change_amount.toFixed(2)}</div>`:''}
-<hr><div class="c">${sale.store.footer||'Thank You! Visit Again Soon'}</div>
-</body></html>`;
-}
 
 function doPrint(sale) {
   const s=sale||ST.lastSale;
-  if(!s)return;
-  const w=window.open('','_blank','width=380,height=600');
-  w.document.write(buildReceiptHTML(s));
-  w.document.close();
-  setTimeout(()=>{w.focus();w.print();},400);
+  if(!s){showToast('No receipt to show','e');return;}
+  const el=document.getElementById('receipt-content');
+  el.innerHTML=buildReceiptInner(s);
+  const ov=document.getElementById('receipt-overlay');
+  ov.classList.add('show');
+  // push a history state so back button closes the receipt
+  history.pushState({receiptOpen:true},'','');
+}
+
+function closeReceipt() {
+  document.getElementById('receipt-overlay').classList.remove('show');
+  if(history.state&&history.state.receiptOpen) history.back();
+}
+
+function printReceiptNow() {
+  window.print();
+}
+
+// Builds the inner HTML for the receipt content div (no outer html/head tags)
+function buildReceiptInner(sale) {
+  const items=sale.items.map(i=>`
+    <tr><td style="padding:2px 0">${i.name}</td>
+    <td style="text-align:center;padding:2px 4px">${i.quantity}</td>
+    <td style="text-align:right;padding:2px 0">₹${parseFloat(i.unit_price).toFixed(2)}</td>
+    <td style="text-align:right;padding:2px 0">₹${parseFloat(i.total).toFixed(2)}</td></tr>`).join('');
+  return `
+<div style="text-align:center;font-weight:bold;font-size:16px">${sale.store.name||'BAKERY'}</div>
+${sale.store.address?`<div style="text-align:center;font-size:11px">${sale.store.address}</div>`:''}
+${sale.store.phone?`<div style="text-align:center;font-size:11px">Ph: ${sale.store.phone}</div>`:''}
+<div style="border-top:1px dashed #000;margin:6px 0"></div>
+<div>Invoice: <b>${sale.invoice_no}</b></div>
+<div>Date: ${sale.date_str}</div>
+<div>Customer: ${sale.customer_name}</div>
+<div style="border-top:1px dashed #000;margin:6px 0"></div>
+<table style="width:100%;border-collapse:collapse;font-size:11px">
+  <thead><tr style="border-bottom:1px solid #000">
+    <th style="text-align:left;padding:2px 0">Item</th>
+    <th style="text-align:center;padding:2px 4px">Qty</th>
+    <th style="text-align:right;padding:2px 0">Rate</th>
+    <th style="text-align:right;padding:2px 0">Amt</th>
+  </tr></thead>
+  <tbody>${items}</tbody>
+</table>
+<div style="border-top:1px dashed #000;margin:6px 0"></div>
+<table style="width:100%;font-size:11px">
+  <tr><td>Subtotal</td><td style="text-align:right">₹${sale.subtotal.toFixed(2)}</td></tr>
+  ${sale.discount>0?`<tr><td>Discount</td><td style="text-align:right">-₹${sale.discount.toFixed(2)}</td></tr>`:''}
+  <tr><td>GST (${sale.gst_percent}%)</td><td style="text-align:right">₹${sale.gst_amount.toFixed(2)}</td></tr>
+  <tr style="font-size:14px;font-weight:bold;border-top:1px dashed #000">
+    <td style="padding-top:4px">NET AMOUNT</td>
+    <td style="text-align:right;padding-top:4px">₹${sale.total.toFixed(2)}</td>
+  </tr>
+</table>
+<div style="border-top:1px dashed #000;margin:6px 0"></div>
+<div>Payment: <b>${sale.payment_mode}</b></div>
+${sale.change_amount>0?`<div>Change: ₹${sale.change_amount.toFixed(2)}</div>`:''}
+<div style="border-top:1px dashed #000;margin:6px 0"></div>
+<div style="text-align:center;font-size:11px">${sale.store.footer||'Thank You! Visit Again Soon'}</div>`;
 }
 
 function doWhatsApp(sale) {
@@ -1552,22 +1598,22 @@ function showToast(msg,type='i'){
 //  ANDROID BACK BUTTON (Capacitor)
 // ═══════════════════════════════════════════════════════════
 document.addEventListener('backbutton', () => {
-  // Close any open modal first
+  if(document.getElementById('receipt-overlay').classList.contains('show')){closeReceipt();return;}
   const openModals=document.querySelectorAll('.modal-bg.show');
   if(openModals.length){closeModal(openModals[openModals.length-1].id);return;}
-  // Close cart if open
   if(ST.cartOpen){toggleCart();return;}
-  // If not on POS, go to POS
   const activePg=document.querySelector('.page.active');
   if(activePg&&activePg.id!=='pg-pos'){goPage('pos');return;}
-  // On POS = confirm exit
   if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App){
     window.Capacitor.Plugins.App.exitApp();
   }
 }, false);
 
-// Also handle browser back button
 window.addEventListener('popstate', ()=>{
+  if(document.getElementById('receipt-overlay').classList.contains('show')){
+    document.getElementById('receipt-overlay').classList.remove('show');
+    history.pushState(null,'',location.href);return;
+  }
   const openModals=document.querySelectorAll('.modal-bg.show');
   if(openModals.length){closeModal(openModals[openModals.length-1].id);history.pushState(null,'',location.href);return;}
   if(ST.cartOpen){toggleCart();history.pushState(null,'',location.href);return;}
