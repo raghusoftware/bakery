@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Jay Narayan Bakery{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h5 class="mb-0 fw-bold">{{ store.store_name }}</h5>
+        <small class="text-muted" id="current-date"></small>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/reports/" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-bar-chart"></i> Reports
+        </a>
+        <a href="/pos/" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-circle"></i> New Sale
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-3 mb-3">
+    <div class="col-4">
+      <div class="stat-card">
+        <div class="stat-icon bg-primary-soft">
+          <i class="bi bi-receipt text-primary"></i>
+        </div>
+        <div class="stat-value" id="stat-sales">0</div>
+        <div class="stat-label">Today's Sales</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="stat-card">
+        <div class="stat-icon bg-success-soft">
+          <i class="bi bi-currency-rupee text-success"></i>
+        </div>
+        <div class="stat-value" id="stat-revenue">₹0</div>
+        <div class="stat-label">Revenue</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="stat-card">
+        <div class="stat-icon bg-warning-soft">
+          <i class="bi bi-box text-warning"></i>
+        </div>
+        <div class="stat-value" id="stat-items">0</div>
+        <div class="stat-label">Items Sold</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Revenue Chart -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h6 class="card-title fw-bold">Weekly Revenue</h6>
+      <canvas id="weeklyChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h6 class="card-title fw-bold">Quick Actions</h6>
+      <div class="row g-2">
+        <div class="col-6">
+          <a href="/pos/" class="btn btn-primary w-100">
+            <i class="bi bi-cart-plus me-2"></i>New Sale
+          </a>
+        </div>
+        <div class="col-6">
+          <a href="/customers/" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-person-plus me-2"></i>Add Customer
+          </a>
+        </div>
+        <div class="col-6">
+          <a href="/products/" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-plus-square me-2"></i>Add Product
+          </a>
+        </div>
+        <div class="col-6">
+          <a href="/reports/" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-download me-2"></i>Reports
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Products -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h6 class="card-title fw-bold">Top Products Today</h6>
+      <div id="top-products">
+        <div class="text-center text-muted py-3">
+          <i class="bi bi-bar-chart fs-2"></i>
+          <p class="mb-0 small">No sales today yet</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Sales -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h6 class="card-title fw-bold">Recent Sales</h6>
+      <div id="recent-sales">
+        <div class="text-center text-muted py-3">
+          <i class="bi bi-receipt fs-2"></i>
+          <p class="mb-0 small">No recent sales</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  // Set current date
+  const now = new Date();
+  document.getElementById('current-date').textContent = now.toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  let weeklyChart = null;
+
+  async function loadDashboard() {
+    try {
+      const resp = await fetch('/api/dashboard/');
+      const data = await resp.json();
+
+      document.getElementById('stat-sales').textContent = data.today_sales;
+      document.getElementById('stat-revenue').textContent = '₹' + data.today_revenue.toFixed(0);
+      document.getElementById('stat-items').textContent = data.today_items;
+
+      // Weekly chart
+      const ctx = document.getElementById('weeklyChart').getContext('2d');
+      if (weeklyChart) weeklyChart.destroy();
+      weeklyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.week_data.map(d => d.date),
+          datasets: [{
+            label: 'Revenue (₹)',
+            data: data.week_data.map(d => d.revenue),
+            backgroundColor: '#FF6B35',
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { display: false } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // Top products
+      const topEl = document.getElementById('top-products');
+      if (data.top_products.length > 0) {
+        topEl.innerHTML = data.top_products.map((p, i) => `
+          <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+            <div>
+              <span class="badge bg-primary me-2">${i+1}</span>
+              <span class="small fw-medium">${p.product__name}</span>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-light text-dark">${p.qty} pcs</span>
+              <span class="ms-1 small text-success">₹${parseFloat(p.revenue).toFixed(0)}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Recent sales
+      const recentEl = document.getElementById('recent-sales');
+      if (data.recent_sales.length > 0) {
+        recentEl.innerHTML = data.recent_sales.map(s => `
+          <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+            <div>
+              <div class="fw-medium small">${s.invoice_no}</div>
+              <div class="text-muted" style="font-size:0.75rem">${s.customer} • ${s.sale_date}</div>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold text-success">₹${parseFloat(s.total).toFixed(2)}</div>
+              <span class="badge bg-light text-dark" style="font-size:0.65rem">${s.payment_mode}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch(e) {
+      console.error('Dashboard load error:', e);
+    }
+  }
+
+  loadDashboard();
+  setInterval(loadDashboard, 30000);
+</script>
+{% endblock %}

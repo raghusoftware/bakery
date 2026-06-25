@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}Sales History - Jay Narayan Bakery{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0 fw-bold">Sales History</h5>
+    <span id="sales-total-badge" class="badge bg-success fs-6"></span>
+  </div>
+
+  <!-- Date Filter -->
+  <div class="row g-2 mb-3">
+    <div class="col-6">
+      <label class="form-label small">From Date</label>
+      <input type="date" id="date-from" class="form-control form-control-sm" onchange="loadSales()">
+    </div>
+    <div class="col-6">
+      <label class="form-label small">To Date</label>
+      <input type="date" id="date-to" class="form-control form-control-sm" onchange="loadSales()">
+    </div>
+  </div>
+
+  <!-- Quick Filters -->
+  <div class="d-flex gap-2 mb-3 flex-wrap">
+    <button class="btn btn-sm btn-outline-primary" onclick="setToday()">Today</button>
+    <button class="btn btn-sm btn-outline-primary" onclick="setWeek()">This Week</button>
+    <button class="btn btn-sm btn-outline-primary" onclick="setMonth()">This Month</button>
+    <button class="btn btn-sm btn-outline-secondary" onclick="clearDates()">All</button>
+  </div>
+
+  <div id="sales-list">
+    <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+  </div>
+</div>
+
+<!-- Sale Detail Modal -->
+<div class="modal fade" id="saleDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modal-invoice-title"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="sale-detail-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="reprint-btn">
+          <i class="bi bi-printer me-2"></i>Reprint
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/printer.js"></script>
+<script>
+let currentSaleData = null;
+
+function setToday() {
+  const t = new Date().toISOString().split('T')[0];
+  document.getElementById('date-from').value = t;
+  document.getElementById('date-to').value = t;
+  loadSales();
+}
+
+function setWeek() {
+  const now = new Date();
+  const d = new Date(now);
+  d.setDate(d.getDate() - 6);
+  document.getElementById('date-from').value = d.toISOString().split('T')[0];
+  document.getElementById('date-to').value = now.toISOString().split('T')[0];
+  loadSales();
+}
+
+function setMonth() {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  document.getElementById('date-from').value = first.toISOString().split('T')[0];
+  document.getElementById('date-to').value = now.toISOString().split('T')[0];
+  loadSales();
+}
+
+function clearDates() {
+  document.getElementById('date-from').value = '';
+  document.getElementById('date-to').value = '';
+  loadSales();
+}
+
+async function loadSales() {
+  const from = document.getElementById('date-from').value;
+  const to = document.getElementById('date-to').value;
+  let url = '/api/sales/';
+  const params = [];
+  if (from) params.push('from=' + from);
+  if (to) params.push('to=' + to);
+  if (params.length) url += '?' + params.join('&');
+
+  const el = document.getElementById('sales-list');
+  el.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const sales = data.sales;
+
+    const totalRev = sales.reduce((sum, s) => sum + parseFloat(s.total), 0);
+    document.getElementById('sales-total-badge').textContent = `${sales.length} sales • ₹${totalRev.toFixed(0)}`;
+
+    if (!sales.length) {
+      el.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-receipt fs-1"></i><p>No sales found</p></div>';
+      return;
+    }
+
+    el.innerHTML = sales.map(s => `
+      <div class="card mb-2 sale-card" onclick="viewSale(${s.id})">
+        <div class="card-body py-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold text-primary small">${s.invoice_no}</div>
+              <div class="small text-muted">${s.customer} • ${s.sale_date}</div>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold">₹${parseFloat(s.total).toFixed(2)}</div>
+              <span class="badge bg-light text-dark" style="font-size:0.65rem">${s.payment_mode}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="alert alert-danger">Error loading sales</div>';
+  }
+}
+
+async function viewSale(id) {
+  const resp = await fetch('/api/sales/' + id + '/');
+  const sale = await resp.json();
+  currentSaleData = sale;
+
+  document.getElementById('modal-invoice-title').textContent = sale.invoice_no;
+  document.getElementById('sale-detail-body').innerHTML = `
+    <div class="mb-3">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted small">Date</span>
+        <span class="small">${sale.sale_date}</span>
+      </div>
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted small">Customer</span>
+        <span class="small fw-medium">${sale.customer}</span>
+      </div>
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted small">Payment</span>
+        <span class="badge bg-primary">${sale.payment_mode}</span>
+      </div>
+    </div>
+    <table class="table table-sm">
+      <thead><tr><th>Item</th><th>Qty</th><th class="text-end">Amount</th></tr></thead>
+      <tbody>
+        ${sale.items.map(i => `
+          <tr>
+            <td class="small">${i.name}</td>
+            <td class="small">${i.quantity} × ₹${parseFloat(i.unit_price).toFixed(2)}</td>
+            <td class="text-end small">₹${parseFloat(i.total).toFixed(2)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div class="border-top pt-2">
+      <div class="d-flex justify-content-between small"><span>Subtotal</span><span>₹${parseFloat(sale.subtotal).toFixed(2)}</span></div>
+      <div class="d-flex justify-content-between small text-danger"><span>Discount</span><span>-₹${parseFloat(sale.discount).toFixed(2)}</span></div>
+      <div class="d-flex justify-content-between small"><span>GST (${sale.gst_percent}%)</span><span>₹${parseFloat(sale.gst_amount).toFixed(2)}</span></div>
+      <div class="d-flex justify-content-between fw-bold"><span>Total</span><span class="text-primary">₹${parseFloat(sale.total).toFixed(2)}</span></div>
+    </div>
+  `;
+
+  document.getElementById('reprint-btn').onclick = () => printReceipt(sale, null);
+  new bootstrap.Modal(document.getElementById('saleDetailModal')).show();
+}
+
+setToday();
+</script>
+{% endblock %}

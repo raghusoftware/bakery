@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block title %}Settings - Jay Narayan Bakery{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h5 class="mb-0 fw-bold">Settings</h5>
+  </div>
+
+  <!-- Store Settings -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h6 class="fw-bold mb-3"><i class="bi bi-shop me-2 text-primary"></i>Store Information</h6>
+      <div class="mb-3">
+        <label class="form-label small fw-medium">Store Name</label>
+        <input type="text" id="s-name" class="form-control" value="{{ store.store_name }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-medium">Address</label>
+        <textarea id="s-address" class="form-control" rows="2">{{ store.address }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-medium">Phone</label>
+        <input type="text" id="s-phone" class="form-control" value="{{ store.phone }}">
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <label class="form-label small fw-medium">GSTIN</label>
+          <input type="text" id="s-gstin" class="form-control" value="{{ store.gstin|default:'' }}">
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-medium">GST %</label>
+          <input type="number" id="s-gst" class="form-control" value="{{ store.gst_percent }}" step="0.01">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-medium">Receipt Footer</label>
+        <input type="text" id="s-footer" class="form-control" value="{{ store.receipt_footer }}">
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">
+        <i class="bi bi-check-lg me-2"></i>Save Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- Printer Configuration -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-printer me-2 text-primary"></i>Printer Config</h6>
+        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addPrinterModal">
+          <i class="bi bi-plus"></i> Add
+        </button>
+      </div>
+      {% if printers %}
+        {% for p in printers %}
+        <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+          <div>
+            <div class="fw-medium small">{{ p.name }}</div>
+            <small class="text-muted">{{ p.get_printer_type_display }} • {{ p.paper_width }}mm</small>
+          </div>
+          {% if p.is_default %}
+          <span class="badge bg-success">Default</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-center text-muted py-3">
+          <i class="bi bi-printer fs-2"></i>
+          <p class="small mb-0">No printers configured</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- App Info -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-2 text-primary"></i>App Info</h6>
+      <div class="d-flex justify-content-between small mb-1">
+        <span class="text-muted">Version</span><span>1.0.0</span>
+      </div>
+      <div class="d-flex justify-content-between small mb-1">
+        <span class="text-muted">Build</span><span>2026.06</span>
+      </div>
+      <button class="btn btn-sm btn-outline-secondary mt-2" onclick="clearCache()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Clear Cache & Reload
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Printer Modal -->
+<div class="modal fade" id="addPrinterModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Add Printer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Configure a thermal receipt printer for printing receipts.</p>
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Printer Name</label>
+          <input type="text" class="form-control" placeholder="e.g. Main Counter Printer">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Connection Type</label>
+          <select class="form-select">
+            <option value="BT">Bluetooth</option>
+            <option value="USB">USB</option>
+            <option value="WIFI">WiFi/Network</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Paper Width</label>
+          <select class="form-select">
+            <option value="80">80mm</option>
+            <option value="58">58mm</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary">Save Printer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function saveSettings() {
+  const resp = await fetch('/api/settings/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({
+      store_name: document.getElementById('s-name').value,
+      address: document.getElementById('s-address').value,
+      phone: document.getElementById('s-phone').value,
+      gstin: document.getElementById('s-gstin').value,
+      gst_percent: document.getElementById('s-gst').value,
+      receipt_footer: document.getElementById('s-footer').value,
+    })
+  });
+  if (resp.ok) {
+    showToast('Settings saved!', 'success');
+  } else {
+    showToast('Error saving settings', 'danger');
+  }
+}
+
+function showToast(msg, type) {
+  const toast = document.createElement('div');
+  toast.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3`;
+  toast.style.zIndex = '9999';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
+}
+
+function clearCache() {
+  if ('caches' in window) {
+    caches.keys().then(names => { names.forEach(n => caches.delete(n)); });
+  }
+  location.reload(true);
+}
+
+function getCookie(name) {
+  let v = null;
+  document.cookie.split(';').forEach(c => {
+    if (c.trim().startsWith(name + '=')) v = decodeURIComponent(c.trim().substring(name.length + 1));
+  });
+  return v;
+}
+</script>
+{% endblock %}

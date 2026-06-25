@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% block title %}Products - Jay Narayan Bakery{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0 fw-bold">Products</h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
+      <i class="bi bi-plus-lg"></i> Add Product
+    </button>
+  </div>
+
+  <!-- Search -->
+  <div class="mb-3">
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input type="text" id="product-search" class="form-control" placeholder="Search products..." oninput="filterProducts(this.value)">
+    </div>
+  </div>
+
+  <!-- Category Filter -->
+  <div class="category-pills mb-3" id="cat-filter">
+    <button class="cat-pill active" data-cat="all" onclick="filterByCategory('all',this)">All</button>
+    {% for cat in categories %}
+    <button class="cat-pill" data-cat="{{ cat.id }}" onclick="filterByCategory('{{ cat.id }}',this)">
+      {{ cat.icon }} {{ cat.name }}
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- Products Table -->
+  <div id="products-container">
+    <div class="text-center py-4">
+      <div class="spinner-border text-primary"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Add Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Product Name *</label>
+          <input type="text" id="prod-name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Category</label>
+          <select id="prod-category" class="form-select">
+            <option value="">Select Category</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.icon }} {{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-medium">Purchase Price (₹) *</label>
+            <input type="number" id="prod-purchase" class="form-control" step="0.01" min="0">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-medium">Selling Price (₹) *</label>
+            <input type="number" id="prod-selling" class="form-control" step="0.01" min="0" required>
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-medium">Stock Qty</label>
+            <input type="number" id="prod-stock" class="form-control" value="0" min="0">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-medium">Barcode</label>
+            <input type="text" id="prod-barcode" class="form-control" placeholder="Optional">
+          </div>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="prod-favorite">
+          <label class="form-check-label small" for="prod-favorite">Mark as Favorite</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Edit Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-prod-id">
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Product Name</label>
+          <input type="text" id="edit-prod-name" class="form-control">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-medium">Purchase Price (₹)</label>
+            <input type="number" id="edit-prod-purchase" class="form-control" step="0.01">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-medium">Selling Price (₹)</label>
+            <input type="number" id="edit-prod-selling" class="form-control" step="0.01">
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-medium">Stock Qty</label>
+            <input type="number" id="edit-prod-stock" class="form-control">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-medium">Barcode</label>
+            <input type="text" id="edit-prod-barcode" class="form-control">
+          </div>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="edit-prod-favorite">
+          <label class="form-check-label small" for="edit-prod-favorite">Favorite</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="edit-prod-active">
+          <label class="form-check-label small" for="edit-prod-active">Active</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="updateProduct()">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allProducts = [];
+let activeCategory = 'all';
+
+async function loadProducts() {
+  try {
+    const resp = await fetch('/api/products/');
+    const data = await resp.json();
+    allProducts = data.products;
+    renderProducts(allProducts);
+  } catch(e) {
+    document.getElementById('products-container').innerHTML = '<div class="alert alert-danger">Error loading products</div>';
+  }
+}
+
+function filterProducts(q) {
+  const filtered = allProducts.filter(p => {
+    const matchSearch = !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.barcode.includes(q);
+    const matchCat = activeCategory === 'all' || (p.category && String(p.category.id) === String(activeCategory));
+    return matchSearch && matchCat;
+  });
+  renderProducts(filtered);
+}
+
+function filterByCategory(catId, btn) {
+  activeCategory = catId;
+  document.querySelectorAll('#cat-filter .cat-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const q = document.getElementById('product-search').value;
+  filterProducts(q);
+}
+
+function renderProducts(products) {
+  const el = document.getElementById('products-container');
+  if (!products.length) {
+    el.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-box fs-1"></i><p>No products found</p></div>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${products.map(p => `
+            <tr>
+              <td>
+                <div class="fw-medium">${p.name} ${p.is_favorite ? '⭐' : ''}</div>
+                <small class="text-muted">${p.category ? p.category.icon + ' ' + p.category.name : 'Uncategorized'}</small>
+              </td>
+              <td>
+                <div class="fw-bold text-primary">₹${parseFloat(p.selling_price).toFixed(2)}</div>
+                <small class="text-muted">Cost: ₹${parseFloat(p.purchase_price).toFixed(2)}</small>
+              </td>
+              <td>
+                <span class="badge ${p.stock_qty > 10 ? 'bg-success' : p.stock_qty > 0 ? 'bg-warning text-dark' : 'bg-danger'}">${p.stock_qty}</span>
+              </td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editProduct(${p.id})">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function saveProduct() {
+  const name = document.getElementById('prod-name').value.trim();
+  const selling_price = document.getElementById('prod-selling').value;
+  if (!name || !selling_price) {
+    alert('Please fill required fields');
+    return;
+  }
+  try {
+    const resp = await fetch('/api/products/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({
+        name,
+        category_id: document.getElementById('prod-category').value || null,
+        purchase_price: document.getElementById('prod-purchase').value || 0,
+        selling_price,
+        stock_qty: document.getElementById('prod-stock').value || 0,
+        barcode: document.getElementById('prod-barcode').value || null,
+        is_favorite: document.getElementById('prod-favorite').checked,
+      })
+    });
+    if (resp.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
+      document.getElementById('prod-name').value = '';
+      loadProducts();
+    } else {
+      const err = await resp.json();
+      alert('Error: ' + (err.error || 'Failed to save'));
+    }
+  } catch(e) {
+    alert('Error saving product');
+  }
+}
+
+async function editProduct(id) {
+  const resp = await fetch('/api/products/' + id + '/');
+  const p = await resp.json();
+  document.getElementById('edit-prod-id').value = p.id;
+  document.getElementById('edit-prod-name').value = p.name;
+  document.getElementById('edit-prod-purchase').value = p.purchase_price;
+  document.getElementById('edit-prod-selling').value = p.selling_price;
+  document.getElementById('edit-prod-stock').value = p.stock_qty;
+  document.getElementById('edit-prod-barcode').value = p.barcode;
+  document.getElementById('edit-prod-favorite').checked = p.is_favorite;
+  document.getElementById('edit-prod-active').checked = p.is_active;
+  new bootstrap.Modal(document.getElementById('editProductModal')).show();
+}
+
+async function updateProduct() {
+  const id = document.getElementById('edit-prod-id').value;
+  const resp = await fetch('/api/products/' + id + '/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({
+      name: document.getElementById('edit-prod-name').value,
+      purchase_price: document.getElementById('edit-prod-purchase').value,
+      selling_price: document.getElementById('edit-prod-selling').value,
+      stock_qty: document.getElementById('edit-prod-stock').value,
+      barcode: document.getElementById('edit-prod-barcode').value,
+      is_favorite: document.getElementById('edit-prod-favorite').checked,
+      is_active: document.getElementById('edit-prod-active').checked,
+    })
+  });
+  if (resp.ok) {
+    bootstrap.Modal.getInstance(document.getElementById('editProductModal')).hide();
+    loadProducts();
+  }
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    document.cookie.split(';').forEach(cookie => {
+      const c = cookie.trim();
+      if (c.startsWith(name + '=')) cookieValue = decodeURIComponent(c.substring(name.length + 1));
+    });
+  }
+  return cookieValue;
+}
+
+loadProducts();
+</script>
+{% endblock %}

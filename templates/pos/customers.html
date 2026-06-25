@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Customers - Jay Narayan Bakery{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0 fw-bold">Customers</h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+      <i class="bi bi-person-plus"></i> Add
+    </button>
+  </div>
+
+  <div class="mb-3">
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input type="text" id="cust-search" class="form-control" placeholder="Search by name or phone..." oninput="searchCustomers(this.value)">
+    </div>
+  </div>
+
+  <div id="customers-list">
+    <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+  </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Add Customer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Name *</label>
+          <input type="text" id="cust-name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Phone *</label>
+          <input type="tel" id="cust-phone" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Email</label>
+          <input type="email" id="cust-email" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-medium">Address</label>
+          <textarea id="cust-address" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-medium">GSTIN</label>
+          <input type="text" id="cust-gstin" class="form-control" placeholder="Optional">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveCustomer()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function searchCustomers(q) {
+  const resp = await fetch('/api/customers/?q=' + encodeURIComponent(q));
+  const data = await resp.json();
+  renderCustomers(data.customers);
+}
+
+function renderCustomers(customers) {
+  const el = document.getElementById('customers-list');
+  if (!customers.length) {
+    el.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-people fs-1"></i><p>No customers found</p></div>';
+    return;
+  }
+  el.innerHTML = customers.map(c => `
+    <div class="card mb-2">
+      <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-medium"><i class="bi bi-person-circle me-2 text-primary"></i>${c.name}</div>
+            <small class="text-muted"><i class="bi bi-telephone me-1"></i>${c.phone}</small>
+            ${c.email ? `<small class="text-muted ms-2"><i class="bi bi-envelope me-1"></i>${c.email}</small>` : ''}
+          </div>
+          ${c.gstin ? `<span class="badge bg-light text-dark small">GST: ${c.gstin}</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveCustomer() {
+  const name = document.getElementById('cust-name').value.trim();
+  const phone = document.getElementById('cust-phone').value.trim();
+  if (!name || !phone) { alert('Name and phone are required'); return; }
+  const resp = await fetch('/api/customers/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({
+      name, phone,
+      email: document.getElementById('cust-email').value || null,
+      address: document.getElementById('cust-address').value || null,
+      gstin: document.getElementById('cust-gstin').value || null,
+    })
+  });
+  if (resp.ok) {
+    bootstrap.Modal.getInstance(document.getElementById('addCustomerModal')).hide();
+    searchCustomers('');
+  } else {
+    const err = await resp.json();
+    alert('Error: ' + (err.error || 'Failed'));
+  }
+}
+
+function getCookie(name) {
+  let v = null;
+  document.cookie.split(';').forEach(c => {
+    if (c.trim().startsWith(name + '=')) v = decodeURIComponent(c.trim().substring(name.length + 1));
+  });
+  return v;
+}
+
+searchCustomers('');
+</script>
+{% endblock %}
