@@ -1,0 +1,17 @@
+{
+  "appId": "com.jnbakery.pos",
+  "appName": "JN Bakery POS",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#FF6B35"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#FF6B35",
+      "showSpinner": false
+    }
+  }
+}

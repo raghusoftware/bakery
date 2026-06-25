@@ -1,0 +1,84 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master, claude/lucid-hypatia-7lwrkx ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Node dependencies
+        working-directory: app
+        run: npm install
+
+      - name: Sync Capacitor
+        working-directory: app
+        run: npx cap sync android
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make Gradle executable
+        working-directory: app/android
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        working-directory: app/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: |
+          mkdir -p release
+          cp app/android/app/build/outputs/apk/debug/app-debug.apk release/JNBakeryPOS.apk
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JNBakeryPOS-APK
+          path: release/JNBakeryPOS.apk
+          retention-days: 30
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: "JN Bakery POS v1.${{ github.run_number }}"
+          body: |
+            ## Jay Narayan Bakery POS - Android APK
+
+            ### How to install:
+            1. Download **JNBakeryPOS.apk** below
+            2. On your Android phone: Settings → Security → Allow Unknown Sources
+            3. Open the downloaded APK and install
+            4. Done! App works fully offline.
+
+            ### Features:
+            - Complete POS with cart, checkout, receipt printing
+            - Bluetooth thermal printer support (58mm/80mm)
+            - Barcode scanner via camera
+            - WhatsApp bill sharing
+            - Offline storage (IndexedDB)
+            - All data saved on device
+          files: release/JNBakeryPOS.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

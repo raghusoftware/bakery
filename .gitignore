@@ -6,3 +6,8 @@ db.sqlite3
 media/
 .env
 *.egg-info/
+app/node_modules/
+app/android/.gradle/
+app/android/app/build/
+app/android/build/
+app/android/local.properties
