@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>JN Bakery POS</title>
+<title>FastBill POS</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -219,7 +219,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <!-- PAGES -->
 <!-- DASHBOARD -->
 <div id="page-dash" class="page active">
-  <div class="topbar"><h1 id="dash-brand">🧁 Crust POS</h1><button onclick="showPage('settings')">⚙️</button></div>
+  <div class="topbar"><h1 id="dash-brand">🧁 FastBill</h1><button onclick="showPage('settings')">⚙️</button></div>
   <div id="low-stock-banner"></div>
   <div class="stats-grid" id="dash-stats"></div>
   <div class="card" id="dash-accounts"></div>
@@ -471,7 +471,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   <div class="topbar"><h1>⚙️ Settings</h1><button onclick="showPage('dash')">← Back</button></div>
   <div class="card">
     <h3>Shop Info</h3>
-    <div class="form-group"><label>Brand / App Name</label><input id="s-brand" type="text" placeholder="e.g. Crust POS"></div>
+    <div class="form-group"><label>Brand / App Name</label><input id="s-brand" type="text" placeholder="e.g. FastBill"></div>
     <div class="form-group"><label>Shop Name</label><input id="s-name" type="text"></div>
     <div class="form-group"><label>Address</label><textarea id="s-addr"></textarea></div>
     <div class="form-group"><label>Phone</label><input id="s-phone" type="text"></div>
@@ -867,7 +867,7 @@ let ST={
   orderType:'TAKEAWAY',tableNo:'',editingOrderId:null,activeTableId:null,
   catFilter:'all',search:'',
   cartOpen:false,lastSale:null,
-  settings:{brand:'Crust POS',name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
+  settings:{brand:'FastBill',name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
 };
 
 // ==================== INIT ====================
@@ -2766,7 +2766,7 @@ function renderCustomers(){
 // ==================== SETTINGS ====================
 function populateSettingsForm(){
   const s=ST.settings;
-  const brandTitle=document.getElementById('dash-brand');if(brandTitle) brandTitle.textContent='🧁 '+(s.brand||'Crust POS');
+  const brandTitle=document.getElementById('dash-brand');if(brandTitle) brandTitle.textContent='🧁 '+(s.brand||'FastBill');
   const bd=document.getElementById('s-brand');if(bd) bd.value=s.brand||'';
   const n=document.getElementById('s-name');if(n) n.value=s.name||'';
   const a=document.getElementById('s-addr');if(a) a.value=s.address||'';
