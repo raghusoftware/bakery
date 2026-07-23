@@ -166,7 +166,8 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
 <!-- POS PAGE -->
 <div id="page-pos" class="page">
   <div class="topbar">
-    <h1>🛒 POS</h1>
+    <h1 id="pos-title">🛒 POS</h1>
+    <button onclick="showPage('tables')">🍽️ Tables</button>
     <button onclick="openBarcodeScanner()">📷</button>
     <button onclick="showPage('dash')">🏠</button>
   </div>
@@ -283,8 +284,16 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('customers')"><div style="font-size:32px">👥</div><div style="font-size:14px;font-weight:600;margin-top:8px">Customers</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('receivables')"><div style="font-size:32px">💰</div><div style="font-size:14px;font-weight:600;margin-top:8px">Receivables</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('accounts')"><div style="font-size:32px">🏦</div><div style="font-size:14px;font-weight:600;margin-top:8px">Cash & Bank</div></button>
+    <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('tables')"><div style="font-size:32px">🍽️</div><div style="font-size:14px;font-weight:600;margin-top:8px">Tables</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('settings')"><div style="font-size:32px">⚙️</div><div style="font-size:14px;font-weight:600;margin-top:8px">Settings</div></button>
   </div>
+</div>
+
+<!-- TABLES PAGE -->
+<div id="page-tables" class="page">
+  <div class="topbar"><h1>🍽️ Tables</h1><button onclick="showPage('pos')">POS →</button></div>
+  <div class="section-header"><h2>Dine-in Tables</h2><button onclick="openAddTableModal()">+ Add Table</button></div>
+  <div id="tables-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:12px"></div>
 </div>
 
 <!-- ACCOUNTS PAGE -->
@@ -323,8 +332,14 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     <div id="staff-list"></div>
   </div>
   <div id="attendance-tab" style="display:none">
-    <div class="section-header"><h2>Today's Attendance</h2></div>
+    <div style="padding:10px 12px;display:flex;gap:8px;align-items:center">
+      <label style="font-size:12px;color:#666">Date</label>
+      <input type="date" id="att-date" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px" onchange="renderStaff()">
+    </div>
+    <div class="section-header"><h2 style="font-size:15px">Mark Attendance</h2></div>
     <div id="attendance-list"></div>
+    <div class="section-header"><h2 style="font-size:15px;color:#888">This Month Summary</h2></div>
+    <div id="attendance-summary"></div>
   </div>
   <div id="advances-tab" style="display:none">
     <div class="section-header"><h2>Advances</h2><button onclick="openAdvanceModal()">+ Add</button></div>
@@ -574,11 +589,29 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
   </div>
 </div>
 
+<!-- Add Table Modal -->
+<div class="modal-bg" id="modal-table">
+  <div class="modal">
+    <h2 id="table-modal-title">Add Table</h2>
+    <input type="hidden" id="tbl-id">
+    <div class="form-group"><label>Table Name / Number</label><input id="tbl-name" type="text" placeholder="e.g. T1, Garden-2, AC-5"></div>
+    <button class="btn btn-primary" onclick="saveTable()">Save</button>
+    <button class="btn btn-danger" id="tbl-delete-btn" style="display:none" onclick="deleteTable()">Delete Table</button>
+    <button class="btn btn-secondary" onclick="closeModal('modal-table')">Cancel</button>
+  </div>
+</div>
+
 <!-- Account Ledger Modal -->
 <div class="modal-bg" id="modal-ledger">
   <div class="modal">
     <h2 id="ledger-title">Ledger</h2>
+    <input type="hidden" id="ledger-acc-id">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input type="date" id="ledger-from" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px" onchange="renderLedger()">
+      <input type="date" id="ledger-to" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px" onchange="renderLedger()">
+    </div>
     <div id="ledger-body"></div>
+    <button class="btn btn-primary" onclick="printLedger()">🖨️ Save PDF</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-ledger')">Close</button>
   </div>
 </div>
@@ -639,7 +672,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
 <div id="toast"></div>
 <script>
 // ==================== DB ====================
-const DB_NAME='JNBakeryDB', DB_VER=4;
+const DB_NAME='JNBakeryDB', DB_VER=5;
 let db;
 
 function openDB(){
@@ -669,6 +702,8 @@ function openDB(){
       if(!d.objectStoreNames.contains('accounts')) d.createObjectStore('accounts',{keyPath:'id',autoIncrement:true});
       if(!d.objectStoreNames.contains('account_txns')) d.createObjectStore('account_txns',{keyPath:'id',autoIncrement:true});
       if(!d.objectStoreNames.contains('open_orders')) d.createObjectStore('open_orders',{keyPath:'id',autoIncrement:true});
+      // New v5 store
+      if(!d.objectStoreNames.contains('tables')) d.createObjectStore('tables',{keyPath:'id',autoIncrement:true});
     };
     req.onsuccess=e=>{db=e.target.result;res(db)};
     req.onerror=e=>rej(e);
@@ -715,10 +750,10 @@ let ST={
   staff:[],attendance:[],advances:[],
   suppliers:[],purchases:[],supplierPayments:[],
   receivables:[],
-  accounts:[],accountTxns:[],openOrders:[],
+  accounts:[],accountTxns:[],openOrders:[],tables:[],
   cart:[],customer:null,discount:0,
   payMode:'CASH',accountId:null,
-  orderType:'TAKEAWAY',tableNo:'',editingOrderId:null,
+  orderType:'TAKEAWAY',tableNo:'',editingOrderId:null,activeTableId:null,
   catFilter:'all',search:'',
   cartOpen:false,lastSale:null,
   settings:{name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
@@ -733,7 +768,7 @@ async function init(){
   await loadAll();
   await ensureDefaultAccount();
   ST.accountId=getDefaultAccountId();
-  loadSettings();
+  await loadSettings();
   renderAll();
   showPage('dash');
   setupBackButton();
@@ -745,13 +780,13 @@ async function loadAll(){
    ST.rawMaterials,ST.recipes,ST.productionLogs,
    ST.staff,ST.attendance,ST.advances,
    ST.suppliers,ST.purchases,ST.supplierPayments,ST.receivables,
-   ST.accounts,ST.accountTxns,ST.openOrders]=
+   ST.accounts,ST.accountTxns,ST.openOrders,ST.tables]=
   await Promise.all([
     dbGetAll('products'),dbGetAll('categories'),dbGetAll('customers'),dbGetAll('sales'),
     dbGetAll('raw_materials'),dbGetAll('recipes'),dbGetAll('production_logs'),
     dbGetAll('staff'),dbGetAll('attendance'),dbGetAll('advances'),
     dbGetAll('suppliers'),dbGetAll('purchases'),dbGetAll('supplier_payments'),dbGetAll('receivables'),
-    dbGetAll('accounts'),dbGetAll('account_txns'),dbGetAll('open_orders')
+    dbGetAll('accounts'),dbGetAll('account_txns'),dbGetAll('open_orders'),dbGetAll('tables')
   ]);
 }
 
@@ -784,12 +819,19 @@ async function postAccountTxn(accId,amount,type,ref,note){
   });
 }
 
-async function loadSettings(){
-  try{
-    const tx=db.transaction('settings','readonly');
-    const req=tx.objectStore('settings').get('main');
-    req.onsuccess=()=>{if(req.result)ST.settings=req.result.value};
-  }catch(e){}
+function loadSettings(){
+  return new Promise(res=>{
+    try{
+      const tx=db.transaction('settings','readonly');
+      const req=tx.objectStore('settings').get('main');
+      req.onsuccess=()=>{
+        // Merge stored over defaults so gst:0 survives and missing keys keep defaults
+        if(req.result&&req.result.value) ST.settings={...ST.settings,...req.result.value};
+        res();
+      };
+      req.onerror=()=>res();
+    }catch(e){res();}
+  });
 }
 
 async function saveSettings(){
@@ -856,6 +898,7 @@ function renderAll(){
   renderProductsList();
   renderAccounts();
   renderOpenTables();
+  renderTables();
   populateSettingsForm();
   checkLowStock();
 }
@@ -864,7 +907,7 @@ function renderAll(){
 const PAGE_NAV_MAP={
   dash:'nav-dash',pos:'nav-pos',production:'nav-production',purchase:'nav-purchase',more:'nav-more',
   rawmat:'nav-more',recipes:'nav-more',staff:'nav-more',sales:'nav-more',
-  products:'nav-more',customers:'nav-more',receivables:'nav-more',accounts:'nav-more',settings:'nav-more'
+  products:'nav-more',customers:'nav-more',receivables:'nav-more',accounts:'nav-more',tables:'nav-pos',settings:'nav-more'
 };
 
 function showPage(name){
@@ -884,6 +927,8 @@ function showPage(name){
   if(name==='recipes') renderRecipes();
   if(name==='staff') renderStaff();
   if(name==='accounts') renderAccounts();
+  if(name==='tables') renderTables();
+  if(name==='pos') syncCheckoutUI();
   if(name==='customers') renderCustomers();
   if(name==='products') renderProductsList();
 }
@@ -1008,7 +1053,9 @@ function changeQty(id,delta){
 
 function clearCart(){
   ST.cart=[];ST.discount=0;ST.customer=null;ST.payMode='CASH';
-  ST.orderType='TAKEAWAY';ST.tableNo='';ST.editingOrderId=null;
+  ST.orderType='TAKEAWAY';ST.tableNo='';ST.editingOrderId=null;ST.activeTableId=null;
+  const pt=document.getElementById('pos-title');if(pt)pt.textContent='🛒 POS';
+  const ct=document.getElementById('cart-title');if(ct)ct.textContent='Cart';
   const di=document.getElementById('discount-inp');if(di)di.value=0;
   const cs=document.getElementById('cust-select');if(cs)cs.value='';
   const ti=document.getElementById('table-inp');if(ti)ti.value='';
@@ -1016,6 +1063,7 @@ function clearCart(){
   document.querySelectorAll('#order-type-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
   const tg=document.getElementById('table-group');if(tg)tg.style.display='none';
   const dg=document.getElementById('deposit-account-group');if(dg)dg.style.display='block';
+  const hb=document.getElementById('hold-table-btn');if(hb)hb.style.display='none';
   if(ST.cartOpen) toggleCart();
   updateCartSummary();renderCartItems();renderPOS();
 }
@@ -1076,6 +1124,8 @@ function setOrderType(type,btn){
   btn.classList.add('active');
   const tg=document.getElementById('table-group');
   if(tg) tg.style.display=(type==='DINEIN')?'block':'none';
+  const hb=document.getElementById('hold-table-btn');
+  if(hb) hb.style.display=(type==='DINEIN')?'block':'none';
 }
 
 function populateAccountSelect(selId,selectedId){
@@ -1150,11 +1200,12 @@ async function confirmSale(){
     // Cash/Card/UPI: money received into chosen account
     await postAccountTxn(saleAccId,total,'SALE',invNo,`${sale.pay_mode} sale`);
   }
-  // If this was settling an open table, remove that open order
+  // If this was settling a held/table order, remove that open order to free the table
   if(ST.editingOrderId){
     await dbDelete('open_orders',ST.editingOrderId);
     ST.editingOrderId=null;
   }
+  ST.activeTableId=null;
   ST.lastSale={...sale,id:saleId};
   clearCart();
   await loadAll();
@@ -1163,14 +1214,108 @@ async function confirmSale(){
   doPrint({...sale,id:saleId});
 }
 
-// ==================== DINE-IN / TABLES ====================
+// ==================== TABLES (dine-in) ====================
+function getTableOrder(tableId){
+  return ST.openOrders.find(o=>o.table_id===tableId)||null;
+}
+function openAddTableModal(id){
+  const t=id?ST.tables.find(x=>x.id===id):null;
+  document.getElementById('table-modal-title').textContent=t?'Edit Table':'Add Table';
+  document.getElementById('tbl-id').value=t?t.id:'';
+  document.getElementById('tbl-name').value=t?t.name:'';
+  const del=document.getElementById('tbl-delete-btn');
+  // Only allow delete when table is free
+  del.style.display=(t&&!getTableOrder(t.id))?'block':'none';
+  openModal('modal-table');
+}
+async function saveTable(){
+  const id=+document.getElementById('tbl-id').value||null;
+  const name=document.getElementById('tbl-name').value.trim();
+  if(!name){showToast('Enter a table name','e');return;}
+  if(id) await dbPut('tables',{id,name,active:true});
+  else await dbAdd('tables',{name,active:true});
+  closeModal('modal-table');
+  await loadAll();renderTables();
+  showToast('Table saved');
+}
+async function deleteTable(){
+  const id=+document.getElementById('tbl-id').value;
+  if(!id) return;
+  if(getTableOrder(id)){showToast('Settle the running order first','e');return;}
+  await dbDelete('tables',id);
+  closeModal('modal-table');
+  await loadAll();renderTables();
+  showToast('Table deleted');
+}
+function renderTables(){
+  const grid=document.getElementById('tables-grid');
+  if(!grid) return;
+  if(ST.tables.length===0){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="icon">🍽️</div><div>No tables yet. Tap "+ Add Table".</div></div>';return;}
+  grid.innerHTML=ST.tables.map(t=>{
+    const o=getTableOrder(t.id);
+    const occupied=!!o;
+    const tot=o?o.items.reduce((s,i)=>s+i.price*i.qty,0):0;
+    const items=o?o.items.reduce((s,i)=>s+i.qty,0):0;
+    return`<button onclick="openTableOrder(${t.id})" style="border:none;text-align:left;cursor:pointer;border-radius:12px;padding:16px;box-shadow:0 2px 8px #0001;position:relative;background:${occupied?'#fff3ee':'#fff'};border:2px solid ${occupied?'#e65100':'#eee'}">
+      <div style="position:absolute;top:10px;right:12px;font-size:11px;font-weight:700;color:${occupied?'#e65100':'#43a047'}">${occupied?'OCCUPIED':'FREE'}</div>
+      <div style="font-size:30px">🍽️</div>
+      <div style="font-size:16px;font-weight:700;margin-top:6px">${t.name}</div>
+      ${occupied?`<div style="font-size:13px;color:#e65100;font-weight:600;margin-top:4px">₹${fmt(tot)} · ${items} item${items!=1?'s':''}</div>`:'<div style="font-size:12px;color:#aaa;margin-top:4px">Tap to open order</div>'}
+      <div style="position:absolute;bottom:8px;right:10px;font-size:16px;color:#bbb" onclick="event.stopPropagation();openAddTableModal(${t.id})">✏️</div>
+    </button>`;
+  }).join('');
+}
+// Open (or start) a table's running order and jump to POS
+function openTableOrder(tableId){
+  const t=ST.tables.find(x=>x.id===tableId);
+  if(!t){showToast('Table not found','e');return;}
+  const o=getTableOrder(tableId);
+  ST.activeTableId=tableId;
+  ST.orderType='DINEIN';
+  ST.tableNo=t.name;
+  if(o){
+    ST.cart=o.items.map(i=>({...i}));
+    ST.customer=o.customer_id?ST.customers.find(c=>c.id===o.customer_id)||null:null;
+    ST.discount=o.discount||0;
+    ST.editingOrderId=o.id;
+  }else{
+    ST.cart=[];ST.customer=null;ST.discount=0;ST.editingOrderId=null;
+  }
+  showPage('pos');
+  syncCheckoutUI();
+  updateCartSummary();renderCartItems();renderPOS();
+  if(!ST.cartOpen) toggleCart();
+}
+// Reflect current order state into the checkout controls
+function syncCheckoutUI(){
+  const di=document.getElementById('discount-inp');if(di)di.value=ST.discount;
+  const ti=document.getElementById('table-inp');if(ti)ti.value=ST.tableNo;
+  populateCustomerSelect();
+  const cs=document.getElementById('cust-select');if(cs)cs.value=ST.customer?ST.customer.id:'';
+  document.querySelectorAll('#order-type-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',(ST.orderType==='DINEIN')===(i===1)));
+  const tg=document.getElementById('table-group');if(tg)tg.style.display=ST.orderType==='DINEIN'?'block':'none';
+  const pt=document.getElementById('pos-title');if(pt)pt.textContent=ST.activeTableId?('🍽️ '+ST.tableNo):'🛒 POS';
+  const ct=document.getElementById('cart-title');if(ct)ct.textContent=ST.activeTableId?('Order · '+ST.tableNo):'Cart';
+  const hb=document.getElementById('hold-table-btn');if(hb)hb.style.display=(ST.orderType==='DINEIN')?'block':'none';
+}
+
+// Save the running order to its table (dine-in) without settling
 async function holdOrder(){
   if(ST.cart.length===0){showToast('Cart is empty','e');return;}
-  const tableNo=ST.orderType==='DINEIN'?(ST.tableNo||'').trim():'';
-  if(ST.orderType==='DINEIN'&&!tableNo){showToast('Enter a table number','e');return;}
+  if(ST.orderType!=='DINEIN'){showToast('Only dine-in orders are held on a table','e');return;}
+  let tableId=ST.activeTableId;
+  let tableName=ST.tableNo;
+  // If user typed a table name without picking a created table, create it
+  if(!tableId){
+    const nm=(ST.tableNo||'').trim();
+    if(!nm){showToast('Enter or pick a table','e');return;}
+    const existing=ST.tables.find(t=>t.name.toLowerCase()===nm.toLowerCase());
+    if(existing){tableId=existing.id;}
+    else{tableId=await dbAdd('tables',{name:nm,active:true});}
+    tableName=nm;ST.activeTableId=tableId;
+  }
   const order={
-    table_no:tableNo||'—',
-    order_type:ST.orderType,
+    table_id:tableId,table_no:tableName,order_type:'DINEIN',
     items:ST.cart.map(i=>({...i})),
     customer_id:ST.customer?ST.customer.id:null,
     customer_name:ST.customer?ST.customer.name:'Walk-in',
@@ -1178,50 +1323,26 @@ async function holdOrder(){
     created_at:new Date().toISOString(),
     created_str:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
   };
-  if(ST.editingOrderId){
-    order.id=ST.editingOrderId;
-    await dbPut('open_orders',order);
-  }else{
-    await dbAdd('open_orders',order);
-  }
-  ST.editingOrderId=null;
+  if(ST.editingOrderId){order.id=ST.editingOrderId;await dbPut('open_orders',order);}
+  else{await dbAdd('open_orders',order);}
+  ST.editingOrderId=null;ST.activeTableId=null;
   clearCart();
   await loadAll();
-  renderPOS();renderOpenTables();
-  showToast('Table saved — resume anytime');
+  renderPOS();renderTables();
+  showToast('Saved to '+tableName+' — resume anytime');
 }
 
 function renderOpenTables(){
   const bar=document.getElementById('open-tables-bar');
   if(!bar) return;
-  if(ST.openOrders.length===0){bar.style.display='none';bar.innerHTML='';return;}
+  const occ=ST.openOrders.filter(o=>o.order_type==='DINEIN'&&o.table_id);
+  if(occ.length===0){bar.style.display='none';bar.innerHTML='';return;}
   bar.style.display='flex';
-  bar.innerHTML=ST.openOrders.map(o=>{
+  bar.innerHTML='<span style="align-self:center;font-size:11px;color:#2b5fd6;font-weight:700;margin-right:2px">OPEN:</span>'+occ.map(o=>{
     const tot=o.items.reduce((s,i)=>s+i.price*i.qty,0);
-    return`<button onclick="resumeOrder(${o.id})" style="flex:0 0 auto;background:#fff;border:1px solid #4b7bec;color:#2b5fd6;border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer">
-      🍽️ ${o.table_no} · ₹${fmt(tot)} <span style="color:#888">(${o.items.length})</span></button>`;
+    return`<button onclick="openTableOrder(${o.table_id})" style="flex:0 0 auto;background:#fff;border:1px solid #4b7bec;color:#2b5fd6;border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer">
+      🍽️ ${o.table_no} · ₹${fmt(tot)}</button>`;
   }).join('');
-}
-
-function resumeOrder(id){
-  const o=ST.openOrders.find(x=>x.id===id);
-  if(!o){showToast('Order not found','e');return;}
-  ST.cart=o.items.map(i=>({...i}));
-  ST.customer=o.customer_id?ST.customers.find(c=>c.id===o.customer_id)||null:null;
-  ST.discount=o.discount||0;
-  ST.orderType=o.order_type||'DINEIN';
-  ST.tableNo=o.table_no==='—'?'':o.table_no;
-  ST.editingOrderId=id;
-  // reflect in UI
-  const di=document.getElementById('discount-inp');if(di)di.value=ST.discount;
-  const ti=document.getElementById('table-inp');if(ti)ti.value=ST.tableNo;
-  populateCustomerSelect();
-  const cs=document.getElementById('cust-select');if(cs)cs.value=ST.customer?ST.customer.id:'';
-  document.querySelectorAll('#order-type-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',(ST.orderType==='DINEIN')===(i===1)));
-  document.getElementById('table-group').style.display=ST.orderType==='DINEIN'?'block':'none';
-  updateCartSummary();renderCartItems();renderPOS();
-  if(!ST.cartOpen) toggleCart();
-  showToast('Table resumed');
 }
 
 // ==================== RECEIPT ====================
@@ -1670,20 +1791,32 @@ function renderPurchaseTabs(){
       <div class="right"><div class="amt">₹${fmt(p.total)}</div></div>
     </div>
   `).join('');
-  // Payables
+  // Payables = unpaid stock-inward / purchase bills, grouped by supplier
   const paylist=document.getElementById('payables-list');
+  const unpaidBills=ST.purchases.filter(p=>!p.paid);
+  const overall=getOverallPayable();
   const withBal=ST.suppliers.filter(s=>getSupplierBalance(s.id)>0);
-  if(withBal.length===0){paylist.innerHTML='<div class="empty-state"><div class="icon">✅</div><div>No outstanding dues</div></div>';}
-  else paylist.innerHTML=withBal.map(s=>`
-    <div class="list-item">
-      <div style="font-size:28px">🏢</div>
-      <div class="info"><h4>${s.name}</h4></div>
-      <div class="right">
-        <div class="amt text-red">₹${fmt(getSupplierBalance(s.id))}</div>
-        <button onclick="openPaySupplierModal(${s.id})" class="btn btn-primary btn-sm" style="margin-top:4px">Pay Now</button>
-      </div>
-    </div>
-  `).join('');
+  if(withBal.length===0){
+    paylist.innerHTML='<div class="empty-state"><div class="icon">✅</div><div>No outstanding dues</div></div>';
+  }else{
+    let html=`<div class="card" style="background:#fff3ee"><h3>Total Payable</h3><div class="big text-red">₹${fmt(overall)}</div></div>`;
+    html+=withBal.map(s=>{
+      const bills=unpaidBills.filter(b=>b.supplier_id===s.id);
+      const bal=getSupplierBalance(s.id);
+      const billsHtml=bills.map(b=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f5f5f5;font-size:13px">
+        <span>${b.raw_material_name} · ${fmt(b.qty)}${b.unit} · ${b.date_str}</span>
+        <span class="text-red">₹${fmt(b.total)}</span></div>`).join('');
+      return`<div class="card">
+        <div style="display:flex;align-items:center">
+          <div style="flex:1"><h3 style="color:#222">${s.name}</h3><div style="font-size:12px;color:#888">${bills.length} unpaid bill${bills.length!=1?'s':''}</div></div>
+          <div style="text-align:right"><div class="amt text-red" style="font-size:18px;font-weight:700">₹${fmt(bal)}</div>
+          <button onclick="openPaySupplierModal(${s.id})" class="btn btn-primary btn-sm" style="margin-top:4px">Pay Now</button></div>
+        </div>
+        <div style="margin-top:8px">${billsHtml||'<div style="font-size:12px;color:#888">Balance from earlier</div>'}</div>
+      </div>`;
+    }).join('');
+    paylist.innerHTML=html;
+  }
 }
 
 // ==================== RECEIVABLES ====================
@@ -1750,17 +1883,23 @@ async function saveStaff(){
   await loadAll();renderStaff();
   showToast('Staff added');
 }
+function getAttDate(){
+  const el=document.getElementById('att-date');
+  const v=el&&el.value?el.value:new Date().toISOString().slice(0,10);
+  return v;
+}
 async function markAttendance(staffId,status){
-  const today=new Date().toDateString();
-  const existing=ST.attendance.find(a=>a.staff_id===staffId&&new Date(a.date).toDateString()===today);
+  const dateStr=getAttDate();
+  const dayKey=new Date(dateStr).toDateString();
+  const existing=ST.attendance.find(a=>a.staff_id===staffId&&new Date(a.date).toDateString()===dayKey);
   if(existing){
     existing.status=status;
     await dbPut('attendance',existing);
   }else{
-    await dbAdd('attendance',{staff_id:staffId,date:new Date().toISOString(),status,check_in:new Date().toTimeString().slice(0,5)});
+    await dbAdd('attendance',{staff_id:staffId,date:new Date(dateStr).toISOString(),status,check_in:new Date().toTimeString().slice(0,5)});
   }
   await loadAll();renderStaff();
-  showToast('Attendance marked');
+  showToast('Attendance marked for '+dateStr);
 }
 function openAdvanceModal(){
   if(ST.staff.length===0){showToast('Add staff first','e');return;}
@@ -1847,19 +1986,72 @@ function renderAccounts(){
 function openLedger(accId){
   const acc=ST.accounts.find(a=>a.id===accId);
   if(!acc) return;
-  document.getElementById('ledger-title').textContent=acc.name+' — ₹'+fmt(getAccountBalance(accId));
-  const txns=ST.accountTxns.filter(t=>t.account_id===accId).reverse();
+  document.getElementById('ledger-acc-id').value=accId;
+  document.getElementById('ledger-from').value='';
+  document.getElementById('ledger-to').value='';
+  renderLedger();
+  openModal('modal-ledger');
+}
+function getLedgerData(){
+  const accId=+document.getElementById('ledger-acc-id').value;
+  const acc=ST.accounts.find(a=>a.id===accId);
+  const from=document.getElementById('ledger-from').value;
+  const to=document.getElementById('ledger-to').value;
+  let txns=ST.accountTxns.filter(t=>t.account_id===accId);
+  if(from) txns=txns.filter(t=>new Date(t.date)>=new Date(from));
+  if(to) txns=txns.filter(t=>new Date(t.date)<=new Date(to+'T23:59:59'));
+  const inTot=txns.filter(t=>t.amount>=0).reduce((s,t)=>s+t.amount,0);
+  const outTot=txns.filter(t=>t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
+  return{acc,txns:txns.slice().reverse(),inTot,outTot,from,to};
+}
+function renderLedger(){
+  const {acc,txns,inTot,outTot}=getLedgerData();
+  if(!acc) return;
+  document.getElementById('ledger-title').textContent=acc.name+' — ₹'+fmt(getAccountBalance(acc.id));
   const body=document.getElementById('ledger-body');
+  const summary=`<div style="display:flex;gap:8px;margin-bottom:8px">
+    <div style="flex:1;background:#e8f5e9;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#43a047">IN</div><div style="font-weight:700;color:#43a047">₹${fmt(inTot)}</div></div>
+    <div style="flex:1;background:#ffebee;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#f44336">OUT</div><div style="font-weight:700;color:#f44336">₹${fmt(outTot)}</div></div>
+  </div>`;
   const openingRow=`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;color:#888"><span>Opening balance</span><span>₹${fmt(acc.opening_balance||0)}</span></div>`;
-  if(txns.length===0){body.innerHTML=openingRow+'<div class="empty-state"><div>No transactions</div></div>';}
-  else body.innerHTML=openingRow+txns.map(t=>{
+  const rows=txns.length===0?'<div class="empty-state"><div>No transactions in range</div></div>':txns.map(t=>{
     const inc=t.amount>=0;
     return`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5">
       <div><div style="font-size:13px;font-weight:600">${t.type} ${t.ref?'· '+t.ref:''}</div><div style="font-size:11px;color:#888">${t.date_str}</div></div>
       <div class="${inc?'text-green':'text-red'}" style="font-weight:700">${inc?'+':''}₹${fmt(t.amount)}</div>
     </div>`;
   }).join('');
-  openModal('modal-ledger');
+  body.innerHTML=summary+openingRow+rows;
+}
+function printLedger(){
+  const {acc,txns,inTot,outTot,from,to}=getLedgerData();
+  if(!acc) return;
+  const period=(from||to)?`${from||'start'} → ${to||'today'}`:'All time';
+  const rows=txns.map(t=>{
+    const inc=t.amount>=0;
+    return`<tr><td style="padding:3px 0">${t.date_str}</td><td>${t.type}${t.ref?' · '+t.ref:''}</td><td style="text-align:right;color:${inc?'#43a047':'#f44336'}">${inc?'+':''}₹${fmt(t.amount)}</td></tr>`;
+  }).join('');
+  const html=`
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:18px;font-weight:700">${ST.settings.name}</div>
+      <div style="font-size:13px">Account Ledger — ${acc.name}</div>
+      <div style="font-size:12px;color:#555">${period}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:6px 0;margin-bottom:8px;font-size:13px">
+      <span>Money In: <b style="color:#43a047">₹${fmt(inTot)}</b></span>
+      <span>Money Out: <b style="color:#f44336">₹${fmt(outTot)}</b></span>
+    </div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr style="border-bottom:1px solid #eee"><th style="text-align:left">Date</th><th style="text-align:left">Details</th><th style="text-align:right">Amount</th></tr>
+      ${rows||'<tr><td colspan="3" style="text-align:center;padding:10px;color:#888">No transactions</td></tr>'}
+    </table>
+    <div style="border-top:1px dashed #ccc;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700">
+      <span>Closing Balance</span><span>₹${fmt(getAccountBalance(acc.id))}</span>
+    </div>`;
+  document.getElementById('receipt-content').innerHTML=html;
+  document.getElementById('receipt-overlay').classList.add('show');
+  history.pushState({receiptOpen:true},'','');
+  setTimeout(()=>window.print(),300);
 }
 function showStaffTab(tab,btn){
   ['staff-list-tab','attendance-tab','advances-tab'].forEach(t=>{
@@ -1882,13 +2074,15 @@ function renderStaff(){
       </div>`;
     }).join('');
   }
-  // Attendance
+  // Attendance for selected date
   const attList=document.getElementById('attendance-list');
   if(attList){
-    const today=new Date().toDateString();
+    const adEl=document.getElementById('att-date');
+    if(adEl&&!adEl.value) adEl.value=new Date().toISOString().slice(0,10);
+    const dayKey=new Date(getAttDate()).toDateString();
     if(ST.staff.length===0){attList.innerHTML='<div class="empty-state"><div>No staff</div></div>';}
     else attList.innerHTML=ST.staff.map(s=>{
-      const att=ST.attendance.find(a=>a.staff_id===s.id&&new Date(a.date).toDateString()===today);
+      const att=ST.attendance.find(a=>a.staff_id===s.id&&new Date(a.date).toDateString()===dayKey);
       return`<div class="list-item">
         <div style="font-size:28px">👤</div>
         <div class="info"><h4>${s.name}</h4><p>${s.role||''}</p></div>
@@ -1897,6 +2091,30 @@ function renderStaff(){
           <button onclick="markAttendance(${s.id},'A')" class="btn btn-sm" style="background:${att&&att.status==='A'?'#f44336':'#eee'};color:${att&&att.status==='A'?'#fff':'#333'}">A</button>
           <button onclick="markAttendance(${s.id},'H')" class="btn btn-sm" style="background:${att&&att.status==='H'?'#fb8c00':'#eee'};color:${att&&att.status==='H'?'#fff':'#333'}">H</button>
         </div>
+      </div>`;
+    }).join('');
+  }
+  // Monthly summary (of the selected date's month)
+  const attSum=document.getElementById('attendance-summary');
+  if(attSum){
+    const sel=new Date(getAttDate());
+    const ym=sel.getFullYear()+'-'+sel.getMonth();
+    if(ST.staff.length===0){attSum.innerHTML='';}
+    else attSum.innerHTML=ST.staff.map(s=>{
+      const recs=ST.attendance.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d.getFullYear()+'-'+d.getMonth()===ym;});
+      const P=recs.filter(a=>a.status==='P').length;
+      const A=recs.filter(a=>a.status==='A').length;
+      const H=recs.filter(a=>a.status==='H').length;
+      const payDays=P+H*0.5;
+      const perDay=s.monthly_salary?s.monthly_salary/30:0;
+      const earned=Math.round(perDay*payDays);
+      const advMonth=ST.advances.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d.getFullYear()+'-'+d.getMonth()===ym;}).reduce((t,a)=>t+a.amount,0);
+      const net=earned-advMonth;
+      return`<div class="list-item">
+        <div style="font-size:24px">📅</div>
+        <div class="info"><h4>${s.name}</h4><p><span class="chip chip-green">P ${P}</span> <span class="chip chip-red">A ${A}</span> <span class="chip chip-amber">H ${H}</span></p>
+          <p style="font-size:11px;color:#888">Earned ₹${fmt(earned)}${advMonth?' − Adv ₹'+fmt(advMonth):''}</p></div>
+        <div class="right"><div class="amt${net<0?' text-red':''}">₹${fmt(net)}</div><div style="font-size:11px;color:#888">Net payable</div></div>
       </div>`;
     }).join('');
   }
@@ -2049,7 +2267,7 @@ function populateSettingsForm(){
   const n=document.getElementById('s-name');if(n) n.value=s.name||'';
   const a=document.getElementById('s-addr');if(a) a.value=s.address||'';
   const p=document.getElementById('s-phone');if(p) p.value=s.phone||'';
-  const g=document.getElementById('s-gst');if(g) g.value=s.gst||5;
+  const g=document.getElementById('s-gst');if(g) g.value=(s.gst??5);
   const gs=document.getElementById('s-gstin');if(gs) gs.value=s.gstin||'';
 }
 function exportData(){
