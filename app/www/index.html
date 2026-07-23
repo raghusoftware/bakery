@@ -9,8 +9,8 @@
 :root{
   --brand:#EA580C;            /* single accent */
   --brand-press:#C2410C;
-  --brand-soft:#FEE7DC;       /* accent tint bg */
-  --brand-tint:#FFF6F1;
+  --brand-soft:var(--brand-soft);       /* accent tint bg */
+  --brand-tint:var(--brand-tint);
   --bg:#F2F2F6;              /* app background */
   --card:#FFFFFF;
   --ink:#1C1C1E;             /* primary text */
@@ -28,6 +28,24 @@
   --sh-3:0 12px 30px rgba(20,20,30,.10);
   --safe-b:env(safe-area-inset-bottom,0px);
 }
+/* DARK THEME — follows the phone's system setting */
+@media(prefers-color-scheme:dark){
+  :root{
+    --brand:#FF6A2B;--brand-press:#E5551E;--brand-soft:#3A2417;--brand-tint:#1A120C;
+    --bg:#000000;--card:#1C1C1E;--ink:#F5F5F7;--ink-2:#9A9AA0;--ink-3:#6E6E73;
+    --line:#2C2C2E;--fill:#2C2C2E;
+    --sh-1:0 1px 2px rgba(0,0,0,.4);--sh-2:0 6px 18px rgba(0,0,0,.35);--sh-3:0 12px 30px rgba(0,0,0,.5);
+  }
+  .topbar{background:rgba(28,28,30,.82)}
+  #bottom-nav{background:rgba(28,28,30,.82)}
+}
+:root[data-theme="dark"]{
+  --brand:#FF6A2B;--brand-press:#E5551E;--brand-soft:#3A2417;--brand-tint:#1A120C;
+  --bg:#000000;--card:#1C1C1E;--ink:#F5F5F7;--ink-2:#9A9AA0;--ink-3:#6E6E73;--line:#2C2C2E;--fill:#2C2C2E;
+}
+:root[data-theme="light"]{--bg:#F2F2F6;--card:#FFFFFF;--ink:#1C1C1E;--ink-2:#6E6E73;--ink-3:#A0A0A6;--line:#E7E7EC;--fill:#EDEDF2;}
+/* Receipt always prints on white paper — pin light tokens inside it */
+#receipt-content{--card:#fff;--ink:#111;--ink-2:#555;--ink-3:#888;--line:#ccc;--fill:var(--line);color:#111}
 body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
 #app{flex:1;overflow:hidden;display:flex;flex-direction:column}
 .page{display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav-h) + var(--safe-b) + 8px)}
@@ -130,11 +148,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 .receipt-action-btn.print{background:var(--brand);color:#fff}
 .receipt-action-btn.close{background:var(--fill);color:var(--ink)}
 #receipt-frame-wrap{flex:1;overflow-y:auto;padding:16px;background:var(--bg)}
-#receipt-content{background:#fff;max-width:380px;margin:0 auto;padding:20px;font-family:"SF Mono",ui-monospace,monospace;font-size:13px;line-height:1.6;border-radius:14px;box-shadow:var(--sh-2)}
+#receipt-content{background:var(--card);max-width:380px;margin:0 auto;padding:20px;font-family:"SF Mono",ui-monospace,monospace;font-size:13px;line-height:1.6;border-radius:14px;box-shadow:var(--sh-2)}
 @media print{
   #receipt-topbar,#bottom-nav,.topbar{display:none!important}
   #receipt-content{box-shadow:none;max-width:100%;padding:0}
-  body{background:#fff}
+  body{background:var(--card)}
 }
 /* TOAST */
 #toast{position:fixed;bottom:calc(var(--nav-h) + var(--safe-b) + 20px);left:50%;transform:translateX(-50%) translateY(20px);background:rgba(28,28,30,.96);backdrop-filter:blur(10px);color:#fff;padding:12px 22px;border-radius:14px;font-size:14px;font-weight:600;opacity:0;transition:all .3s cubic-bezier(.2,.8,.2,1);z-index:500;white-space:nowrap;pointer-events:none;box-shadow:var(--sh-3)}
@@ -201,7 +219,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <!-- PAGES -->
 <!-- DASHBOARD -->
 <div id="page-dash" class="page active">
-  <div class="topbar"><h1>🧁 JN Bakery POS</h1><button onclick="showPage('settings')">⚙️</button></div>
+  <div class="topbar"><h1 id="dash-brand">🧁 Crust POS</h1><button onclick="showPage('settings')">⚙️</button></div>
   <div id="low-stock-banner"></div>
   <div class="stats-grid" id="dash-stats"></div>
   <div class="card" id="dash-accounts"></div>
@@ -230,8 +248,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <button onclick="openBarcodeScanner()">📷</button>
     <button onclick="showPage('dash')">🏠</button>
   </div>
-  <div id="pos-low-stock" style="display:none;background:#fff3cd;border-left:4px solid #fb8c00;padding:8px 14px;font-size:12px;color:#7b4a00"></div>
-  <div id="open-tables-bar" style="display:none;padding:8px 12px;gap:8px;overflow-x:auto;white-space:nowrap;background:#FFF6F1;border-bottom:1px solid #F0E1D8"></div>
+  <div id="pos-low-stock" style="display:none;background:var(--brand-soft);border-left:3px solid var(--brand);padding:10px 14px;font-size:12px;color:var(--brand)"></div>
+  <div id="open-tables-bar" style="display:none;padding:8px 12px;gap:8px;overflow-x:auto;white-space:nowrap;background:var(--brand-tint);border-bottom:1px solid var(--line)"></div>
   <div id="pos-body">
    <div id="pos-main">
     <div class="cat-scroll" id="cat-bar"></div>
@@ -240,8 +258,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
    </div>
   <div id="cart-toggle" onclick="toggleCart()" style="display:none"><span id="cart-toggle-label">🛒</span> <span id="cart-count">0</span> items · ₹<span id="cart-total-mini">0</span> — Tap to bill ▲</div>
   <div id="cart-panel">
-    <div style="padding:12px 16px;background:#FFF6F1;border-bottom:1px solid #F0E1D8;display:flex;align-items:center;gap:8px">
-      <button id="cart-collapse-btn" onclick="toggleCart()" style="border:none;background:#eee;border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer" title="Close">▼</button>
+    <div style="padding:12px 16px;background:var(--brand-tint);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px">
+      <button id="cart-collapse-btn" onclick="toggleCart()" style="border:none;background:var(--line);border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer" title="Close">▼</button>
       <h3 style="flex:1" id="cart-title">Order Details</h3>
       <button onclick="clearCart()" class="btn btn-danger btn-sm">Clear</button>
     </div>
@@ -262,7 +280,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
       <div class="form-group">
         <label>Customer (optional)</label>
         <div style="display:flex;gap:8px">
-          <select id="cust-select" onchange="selectCustomer(this.value)" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px">
+          <select id="cust-select" onchange="selectCustomer(this.value)" style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px">
             <option value="">Walk-in Customer</option>
           </select>
           <button onclick="openAddCustomerModal()" class="btn btn-secondary btn-sm" style="margin-top:0">+ Add</button>
@@ -283,7 +301,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
       </div>
       <div class="form-group" id="deposit-account-group">
         <label>Deposit to Account</label>
-        <select id="sale-account" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" onchange="ST.accountId=+this.value"></select>
+        <select id="sale-account" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px" onchange="ST.accountId=+this.value"></select>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" id="hold-table-btn" style="flex:1" onclick="holdOrder()">🍽️ Save Table</button>
@@ -302,7 +320,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <button onclick="openProduceModal()">+ Produce</button>
   </div>
   <div class="section-header" style="padding-top:4px">
-    <h2 style="font-size:15px;color:#888">Wastage Entry</h2>
+    <h2 style="font-size:15px;color:var(--ink-3)">Wastage Entry</h2>
     <button onclick="openWastageModal()" style="background:#fb8c00">+ Wastage</button>
   </div>
   <div id="production-log-list"></div>
@@ -323,11 +341,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   <div id="tab-purchases" style="display:none">
     <div class="section-header"><h2>Stock Inward</h2><button onclick="openPurchaseModal()">+ Add</button></div>
     <div style="padding:6px 12px;display:flex;gap:8px">
-      <input type="date" id="pur-from" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px">
-      <input type="date" id="pur-to" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+      <input type="date" id="pur-from" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+      <input type="date" id="pur-to" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
       <button onclick="renderPurchaseTabs()" style="padding:8px 14px;background:#EA580C;color:#fff;border:none;border-radius:8px;font-size:13px">Filter</button>
     </div>
-    <div id="pur-summary-bar" style="padding:0 12px 6px;font-size:13px;color:#555"></div>
+    <div id="pur-summary-bar" style="padding:0 12px 6px;font-size:13px;color:var(--ink-2)"></div>
     <div id="purchase-list"></div>
   </div>
   <div id="tab-payables" style="display:none">
@@ -365,7 +383,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   <div class="topbar"><h1>🏦 Cash & Bank</h1><button onclick="showPage('more')">← Back</button></div>
   <div class="section-header"><h2>Accounts</h2><button onclick="openAccountModal()">+ Add</button></div>
   <div id="accounts-list"></div>
-  <div class="section-header"><h2 style="font-size:15px;color:#888">Recent Transactions</h2></div>
+  <div class="section-header"><h2 style="font-size:15px;color:var(--ink-3)">Recent Transactions</h2></div>
   <div id="account-txn-list"></div>
 </div>
 
@@ -397,12 +415,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   </div>
   <div id="attendance-tab" style="display:none">
     <div style="padding:10px 12px;display:flex;gap:8px;align-items:center">
-      <label style="font-size:12px;color:#666">Date</label>
-      <input type="date" id="att-date" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px" onchange="renderStaff()">
+      <label style="font-size:12px;color:var(--ink-2)">Date</label>
+      <input type="date" id="att-date" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px" onchange="renderStaff()">
     </div>
     <div class="section-header"><h2 style="font-size:15px">Mark Attendance</h2></div>
     <div id="attendance-list"></div>
-    <div class="section-header"><h2 style="font-size:15px;color:#888">Payroll — whom to pay</h2></div>
+    <div class="section-header"><h2 style="font-size:15px;color:var(--ink-3)">Payroll — whom to pay</h2></div>
     <div id="attendance-summary"></div>
   </div>
   <div id="advances-tab" style="display:none">
@@ -415,8 +433,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div id="page-sales" class="page">
   <div class="topbar"><h1>📊 Sales History</h1><button onclick="showPage('more')">← Back</button></div>
   <div style="padding:10px 12px;display:flex;gap:8px">
-    <input type="date" id="sales-from" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px">
-    <input type="date" id="sales-to" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+    <input type="date" id="sales-from" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+    <input type="date" id="sales-to" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
     <button onclick="renderSalesHistory()" style="padding:8px 14px;background:#EA580C;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">Filter</button>
   </div>
   <div id="sales-summary-bar" style="padding:4px 12px 8px"></div>
@@ -453,6 +471,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   <div class="topbar"><h1>⚙️ Settings</h1><button onclick="showPage('dash')">← Back</button></div>
   <div class="card">
     <h3>Shop Info</h3>
+    <div class="form-group"><label>Brand / App Name</label><input id="s-brand" type="text" placeholder="e.g. Crust POS"></div>
     <div class="form-group"><label>Shop Name</label><input id="s-name" type="text"></div>
     <div class="form-group"><label>Address</label><textarea id="s-addr"></textarea></div>
     <div class="form-group"><label>Phone</label><input id="s-phone" type="text"></div>
@@ -500,8 +519,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div class="modal-bg" id="modal-recipe">
   <div class="modal">
     <h2>Recipe / BOM</h2>
-    <div class="form-group"><label>Product</label><select id="recipe-product" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" onchange="loadRecipeForProduct()"></select></div>
-    <label style="font-size:12px;color:#666">Ingredients (per 1 unit of product)</label>
+    <div class="form-group"><label>Product</label><select id="recipe-product" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px" onchange="loadRecipeForProduct()"></select></div>
+    <label style="font-size:12px;color:var(--ink-2)">Ingredients (per 1 unit of product)</label>
     <div id="recipe-rows"></div>
     <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:6px" onclick="addRecipeRow()">+ Add Ingredient</button>
     <button class="btn btn-primary" onclick="saveRecipe()">Save Recipe</button>
@@ -513,9 +532,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div class="modal-bg" id="modal-produce">
   <div class="modal">
     <h2>Produce Batch</h2>
-    <div class="form-group"><label>Product</label><select id="produce-product" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" onchange="showProduceMaterials()"></select></div>
+    <div class="form-group"><label>Product</label><select id="produce-product" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px" onchange="showProduceMaterials()"></select></div>
     <div class="form-group"><label>Qty to Produce</label><input id="produce-qty" type="number" min="1" value="1" oninput="showProduceMaterials()"></div>
-    <div id="produce-materials-preview" style="background:#f5f5f5;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;min-height:40px"></div>
+    <div id="produce-materials-preview" style="background:var(--fill);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;min-height:40px"></div>
     <button class="btn btn-primary" onclick="confirmProduce()">✅ Produce</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-produce')">Cancel</button>
   </div>
@@ -525,7 +544,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div class="modal-bg" id="modal-wastage">
   <div class="modal">
     <h2>Record Wastage</h2>
-    <div class="form-group"><label>Product</label><select id="wastage-product" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
+    <div class="form-group"><label>Product</label><select id="wastage-product" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px"></select></div>
     <div class="form-group"><label>Qty Wasted</label><input id="wastage-qty" type="number" min="1" value="1"></div>
     <div class="form-group"><label>Reason</label><input id="wastage-reason" type="text" placeholder="e.g. Burnt, Expired"></div>
     <button class="btn btn-danger" onclick="confirmWastage()">Record Wastage</button>
@@ -550,16 +569,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <!-- Purchase Modal -->
 <div class="modal-bg" id="modal-purchase">
   <div class="modal">
-    <h2>Add Stock Inward</h2>
-    <div class="form-group"><label>Supplier</label><select id="pur-supplier" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
-    <div class="form-group"><label>Raw Material</label><select id="pur-rawmat" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" onchange="fillPurchaseUnit()"></select></div>
+    <h2 id="purchase-modal-title">Add Stock Inward</h2>
+    <input type="hidden" id="pur-edit-id">
+    <div class="form-group"><label>Supplier</label><select id="pur-supplier" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px"></select></div>
+    <div class="form-group"><label>Raw Material</label><select id="pur-rawmat" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px" onchange="fillPurchaseUnit()"></select></div>
     <div class="row-flex">
       <div class="form-group"><label>Qty</label><input id="pur-qty" type="number" min="0.001" step="0.001" value="1" oninput="calcPurchaseTotal()"></div>
-      <div class="form-group"><label>Unit</label><input id="pur-unit" type="text" readonly style="background:#f5f5f5"></div>
+      <div class="form-group"><label>Unit</label><input id="pur-unit" type="text" readonly style="background:var(--fill)"></div>
     </div>
     <div class="row-flex">
       <div class="form-group"><label>Rate (₹/unit)</label><input id="pur-rate" type="number" min="0" step="0.01" value="0" oninput="calcPurchaseTotal()"></div>
-      <div class="form-group"><label>Total (₹)</label><input id="pur-total" type="number" readonly style="background:#f5f5f5"></div>
+      <div class="form-group"><label>Total (₹)</label><input id="pur-total" type="number" readonly style="background:var(--fill)"></div>
     </div>
     <div class="form-group">
       <label>Payment Status</label>
@@ -569,7 +589,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
       </div>
     </div>
     <input type="hidden" id="pur-is-paid" value="1">
-    <div class="form-group" id="pur-account-group"><label>Pay from Account</label><select id="pur-account" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
+    <div class="form-group" id="pur-account-group"><label>Pay from Account</label><select id="pur-account" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px"></select></div>
     <div class="form-group"><label>Notes</label><input id="pur-notes" type="text" placeholder="Invoice no, etc."></div>
     <button class="btn btn-primary" onclick="savePurchase()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-purchase')">Cancel</button>
@@ -580,10 +600,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div class="modal-bg" id="modal-pay-supplier">
   <div class="modal">
     <h2>Pay Supplier</h2>
-    <div id="pay-supplier-info" style="margin-bottom:12px;font-size:14px;color:#555"></div>
+    <div id="pay-supplier-info" style="margin-bottom:12px;font-size:14px;color:var(--ink-2)"></div>
     <input type="hidden" id="pay-sup-id">
     <div class="form-group"><label>Amount (₹)</label><input id="pay-sup-amount" type="number" min="1" step="0.01"></div>
-    <div class="form-group"><label>Pay from Account</label><select id="pay-sup-account" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
+    <div class="form-group"><label>Pay from Account</label><select id="pay-sup-account" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px"></select></div>
     <div class="form-group"><label>Note</label><input id="pay-sup-note" type="text" placeholder="e.g. Cash payment"></div>
     <button class="btn btn-primary" onclick="confirmPaySupplier()">Pay</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-pay-supplier')">Cancel</button>
@@ -607,7 +627,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div class="modal-bg" id="modal-collect">
   <div class="modal">
     <h2>Receive Payment</h2>
-    <div id="collect-info" style="margin-bottom:12px;font-size:14px;color:#555"></div>
+    <div id="collect-info" style="margin-bottom:12px;font-size:14px;color:var(--ink-2)"></div>
     <input type="hidden" id="collect-recv-id">
     <div class="form-group"><label>Amount Received (₹)</label><input id="collect-amount" type="number" min="1" step="0.01"></div>
     <button class="btn btn-green" onclick="confirmCollect()">✅ Mark Settled</button>
@@ -642,9 +662,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div class="modal-bg" id="modal-advance">
   <div class="modal">
     <h2>Give Advance</h2>
-    <div class="form-group"><label>Staff</label><select id="adv-staff" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
+    <div class="form-group"><label>Staff</label><select id="adv-staff" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px"></select></div>
     <div class="form-group"><label>Amount (₹)</label><input id="adv-amount" type="number" min="1"></div>
-    <div class="form-group"><label>Pay from Account</label><select id="adv-account" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
+    <div class="form-group"><label>Pay from Account</label><select id="adv-account" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px"></select></div>
     <div class="form-group"><label>Note</label><input id="adv-note" type="text" placeholder="Reason/note"></div>
     <button class="btn btn-primary" onclick="saveAdvance()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-advance')">Cancel</button>
@@ -657,7 +677,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <h2 id="account-modal-title">Add Account</h2>
     <input type="hidden" id="acc-id">
     <div class="form-group"><label>Account Name</label><input id="acc-name" type="text" placeholder="e.g. HDFC Bank, Paytm"></div>
-    <div class="form-group"><label>Type</label><select id="acc-type" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI / Wallet</option></select></div>
+    <div class="form-group"><label>Type</label><select id="acc-type" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px"><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI / Wallet</option></select></div>
     <div class="form-group"><label>Opening Balance (₹)</label><input id="acc-opening" type="number" step="0.01" value="0"></div>
     <button class="btn btn-primary" onclick="saveAccount()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-account')">Cancel</button>
@@ -669,6 +689,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   <div class="modal">
     <h2 id="staff-detail-title">Staff</h2>
     <div id="staff-detail-body"></div>
+  </div>
+</div>
+
+<!-- Sale Detail Modal -->
+<div class="modal-bg" id="modal-sale">
+  <div class="modal">
+    <h2 id="sale-detail-title">Sale</h2>
+    <div id="sale-detail-body"></div>
   </div>
 </div>
 
@@ -690,8 +718,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <h2 id="ledger-title">Ledger</h2>
     <input type="hidden" id="ledger-acc-id">
     <div style="display:flex;gap:8px;margin-bottom:10px">
-      <input type="date" id="ledger-from" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px" onchange="renderLedger()">
-      <input type="date" id="ledger-to" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px" onchange="renderLedger()">
+      <input type="date" id="ledger-from" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px" onchange="renderLedger()">
+      <input type="date" id="ledger-to" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px" onchange="renderLedger()">
     </div>
     <div id="ledger-body"></div>
     <button class="btn btn-primary" onclick="printLedger()">🖨️ Save PDF</button>
@@ -706,7 +734,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <input type="hidden" id="prod-id">
     <div class="form-group"><label>Name</label><input id="prod-name" type="text"></div>
     <div class="form-group"><label>Category</label>
-      <select id="prod-cat" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px">
+      <select id="prod-cat" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px">
         <option value="Bread">Bread</option><option value="Cake">Cake</option>
         <option value="Biscuit">Biscuit</option><option value="Snack">Snack</option>
         <option value="Drink">Drink</option><option value="Other">Other</option>
@@ -839,7 +867,7 @@ let ST={
   orderType:'TAKEAWAY',tableNo:'',editingOrderId:null,activeTableId:null,
   catFilter:'all',search:'',
   cartOpen:false,lastSale:null,
-  settings:{name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
+  settings:{brand:'Crust POS',name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
 };
 
 // ==================== INIT ====================
@@ -918,6 +946,7 @@ function loadSettings(){
 }
 
 async function saveSettings(){
+  ST.settings.brand=document.getElementById('s-brand').value||ST.settings.brand;
   ST.settings.name=document.getElementById('s-name').value||ST.settings.name;
   ST.settings.address=document.getElementById('s-addr').value||ST.settings.address;
   ST.settings.phone=document.getElementById('s-phone').value||ST.settings.phone;
@@ -1058,16 +1087,16 @@ function renderDash(){
     if(ST.accounts.length===0){acctEl.innerHTML='';}
     else acctEl.innerHTML='<h3>Cash & Bank</h3>'+ST.accounts.map(a=>{
       const bal=getAccountBalance(a.id);
-      return`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0"><span>${a.name}</span><span style="font-weight:700;color:${bal<0?'#f44336':'#43a047'}">₹${fmt(bal)}</span></div>`;
+      return`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>${a.name}</span><span style="font-weight:700;color:${bal<0?'#f44336':'#43a047'}">₹${fmt(bal)}</span></div>`;
     }).join('');
   }
   // Today's items
   const el=document.getElementById('dash-today-list');
   if(todaySales.length===0){el.innerHTML='<div class="empty-state"><div>No sales today yet</div></div>';return;}
   el.innerHTML=todaySales.slice().reverse().slice(0,5).map(s=>`
-    <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0">
+    <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
       <div style="flex:1"><div style="font-size:14px;font-weight:600">${s.invoice_no}</div>
-        <div style="font-size:12px;color:#888">${s.date_str} · ${s.pay_mode}</div></div>
+        <div style="font-size:12px;color:var(--ink-3)">${s.date_str} · ${s.pay_mode}</div></div>
       <div style="font-size:15px;font-weight:700;color:#EA580C">₹${fmt(s.total)}</div>
     </div>
   `).join('');
@@ -1087,7 +1116,7 @@ function renderPOS(){
   document.getElementById('product-grid').innerHTML=prods.map(p=>{
     const inCart=ST.cart.find(i=>i.id===p.id);
     const stockLow=p.stock_qty<=2;
-    const img=p.image?`<div style="width:100%;height:90px;border-radius:8px;background:#f0f0f0 center/cover no-repeat url('${p.image}');margin-bottom:6px"></div>`:'';
+    const img=p.image?`<div style="width:100%;height:90px;border-radius:8px;background:var(--line) center/cover no-repeat url('${p.image}');margin-bottom:6px"></div>`:'';
     return`<div class="prod-card${inCart?' in-cart':''}" onclick="addToCart(${p.id})">
       ${img}
       <div class="pname">${p.name}</div>
@@ -1163,7 +1192,7 @@ function toggleCart(){
 
 function renderCartItems(){
   const el=document.getElementById('cart-items');
-  if(ST.cart.length===0){el.innerHTML='<div style="padding:20px;text-align:center;color:#aaa">Cart is empty</div>';return;}
+  if(ST.cart.length===0){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--ink-3)">Cart is empty</div>';return;}
   el.innerHTML=ST.cart.map(item=>`
     <div class="cart-item">
       <div class="ci-name">${item.name}</div>
@@ -1193,7 +1222,7 @@ function updateCartSummary(){
   document.getElementById('cart-summary').innerHTML=`
     <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal</span><span>₹${fmt(sub)}</span></div>
     ${disc>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#43a047"><span>Discount</span><span>−₹${fmt(disc)}</span></div>`:''}
-    ${ST.settings.gst>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#888;font-size:13px"><span>GST (${ST.settings.gst}%)</span><span>₹${fmt(gstAmt)}</span></div>`:''}
+    ${ST.settings.gst>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px;color:var(--ink-3);font-size:13px"><span>GST (${ST.settings.gst}%)</span><span>₹${fmt(gstAmt)}</span></div>`:''}
     <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:#EA580C"><span>Total</span><span>₹${fmt(total)}</span></div>
   `;
 }
@@ -1345,11 +1374,11 @@ function renderTables(){
     const occupied=!!o;
     const tot=o?o.items.reduce((s,i)=>s+i.price*i.qty,0):0;
     const items=o?o.items.reduce((s,i)=>s+i.qty,0):0;
-    return`<button onclick="openTableOrder(${t.id})" style="border:none;text-align:left;cursor:pointer;border-radius:12px;padding:16px;box-shadow:0 2px 8px #0001;position:relative;background:${occupied?'#FEE7DC':'#fff'};border:2px solid ${occupied?'#EA580C':'#eee'}">
+    return`<button onclick="openTableOrder(${t.id})" style="border:none;text-align:left;cursor:pointer;border-radius:12px;padding:16px;box-shadow:0 2px 8px #0001;position:relative;background:${occupied?'var(--brand-soft)':'#fff'};border:2px solid ${occupied?'#EA580C':'var(--line)'}">
       <div style="position:absolute;top:10px;right:12px;font-size:11px;font-weight:700;color:${occupied?'#EA580C':'#43a047'}">${occupied?'OCCUPIED':'FREE'}</div>
       <div style="font-size:30px">🍽️</div>
       <div style="font-size:16px;font-weight:700;margin-top:6px">${t.name}</div>
-      ${occupied?`<div style="font-size:13px;color:#EA580C;font-weight:600;margin-top:4px">₹${fmt(tot)} · ${items} item${items!=1?'s':''}</div>`:'<div style="font-size:12px;color:#aaa;margin-top:4px">Tap to open order</div>'}
+      ${occupied?`<div style="font-size:13px;color:#EA580C;font-weight:600;margin-top:4px">₹${fmt(tot)} · ${items} item${items!=1?'s':''}</div>`:'<div style="font-size:12px;color:var(--ink-3);margin-top:4px">Tap to open order</div>'}
       <div style="position:absolute;bottom:8px;right:10px;font-size:16px;color:#bbb" onclick="event.stopPropagation();openAddTableModal(${t.id})">✏️</div>
     </button>`;
   }).join('');
@@ -1435,7 +1464,7 @@ function renderOpenTables(){
   bar.style.display='flex';
   bar.innerHTML='<span style="align-self:center;font-size:11px;color:#EA580C;font-weight:700;margin-right:2px">OPEN:</span>'+occ.map(o=>{
     const tot=o.items.reduce((s,i)=>s+i.price*i.qty,0);
-    return`<button onclick="openTableOrder(${o.table_id})" style="flex:0 0 auto;background:#fff;border:1px solid #EA580C;color:#EA580C;border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer">
+    return`<button onclick="openTableOrder(${o.table_id})" style="flex:0 0 auto;background:var(--card);border:1px solid #EA580C;color:#EA580C;border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer">
       🍽️ ${o.table_no} · ₹${fmt(tot)}</button>`;
   }).join('');
 }
@@ -1467,20 +1496,20 @@ function buildReceiptInner(s){
   return`
     <div style="text-align:center;margin-bottom:12px">
       <div style="font-size:18px;font-weight:700">${shop.name}</div>
-      <div style="font-size:12px;color:#555">${shop.address}</div>
-      <div style="font-size:12px;color:#555">Ph: ${shop.phone}</div>
+      <div style="font-size:12px;color:var(--ink-2)">${shop.address}</div>
+      <div style="font-size:12px;color:var(--ink-2)">Ph: ${shop.phone}</div>
       ${shop.gstin?`<div style="font-size:11px">GSTIN: ${shop.gstin}</div>`:''}
     </div>
     <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:8px 0;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#666">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2)">
         <span>${s.invoice_no}</span><span>${s.date_str}</span>
       </div>
-      <div style="font-size:12px;color:#555">Customer: ${s.customer_name}</div>
-      ${s.order_type==='DINEIN'?`<div style="font-size:12px;color:#555">Dine-in · Table ${s.table_no||'—'}</div>`:`<div style="font-size:12px;color:#555">Takeaway</div>`}
-      <div style="font-size:12px;color:#555">Mode: ${s.pay_mode}</div>
+      <div style="font-size:12px;color:var(--ink-2)">Customer: ${s.customer_name}</div>
+      ${s.order_type==='DINEIN'?`<div style="font-size:12px;color:var(--ink-2)">Dine-in · Table ${s.table_no||'—'}</div>`:`<div style="font-size:12px;color:var(--ink-2)">Takeaway</div>`}
+      <div style="font-size:12px;color:var(--ink-2)">Mode: ${s.pay_mode}</div>
     </div>
     <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr style="border-bottom:1px solid #eee"><th style="text-align:left;padding:4px 0">Item</th><th>Qty</th><th style="text-align:right">Amt</th></tr>
+      <tr style="border-bottom:1px solid var(--line)"><th style="text-align:left;padding:4px 0">Item</th><th>Qty</th><th style="text-align:right">Amt</th></tr>
       ${s.items.map(i=>`<tr><td style="padding:3px 0">${i.name}</td><td style="text-align:center">×${i.qty}</td><td style="text-align:right">₹${fmt(i.price*i.qty)}</td></tr>`).join('')}
     </table>
     <div style="border-top:1px dashed #ccc;margin-top:8px;padding-top:8px">
@@ -1489,7 +1518,7 @@ function buildReceiptInner(s){
       ${s.gst_amount>0?line(`GST (${ST.settings.gst}%)`,'₹'+fmt(s.gst_amount)):''}
       <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;margin-top:4px">${line('TOTAL','₹'+fmt(s.total))}</div>
     </div>
-    <div style="text-align:center;margin-top:16px;font-size:11px;color:#888">Thank you for your visit!</div>
+    <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--ink-3)">Thank you for your visit!</div>
   `;
 }
 
@@ -1505,7 +1534,7 @@ function showProduceMaterials(){
   const qty=+document.getElementById('produce-qty').value||1;
   const lines=ST.recipes.filter(r=>r.product_id===pid);
   const prev=document.getElementById('produce-materials-preview');
-  if(lines.length===0){prev.innerHTML='<div style="color:#888">No recipe defined for this product. Production will still add stock.</div>';return;}
+  if(lines.length===0){prev.innerHTML='<div style="color:var(--ink-3)">No recipe defined for this product. Production will still add stock.</div>';return;}
   let html='<b>Materials Required:</b><br>';
   let canProduce=true;
   for(const l of lines){
@@ -1599,11 +1628,12 @@ function renderProductionLog(){
       <div class="info">
         <h4>${l.product_name}</h4>
         <p>${l.date_str}${l.reason?' · '+l.reason:''}</p>
-        ${l.materials_used&&l.materials_used.length?`<p style="font-size:11px;color:#888">Used: ${l.materials_used.map(m=>m.qty_used+' '+m.unit+' '+m.rm_name).join(', ')}</p>`:''}
+        ${l.materials_used&&l.materials_used.length?`<p style="font-size:11px;color:var(--ink-3)">Used: ${l.materials_used.map(m=>m.qty_used+' '+m.unit+' '+m.rm_name).join(', ')}</p>`:''}
       </div>
       <div class="right">
         <div class="amt${l.type==='WASTAGE'?' text-red':''}">${l.type==='WASTAGE'?'−':'+'} ${Math.abs(l.qty_produced)}</div>
-        <div style="font-size:12px;color:#888">${l.type}</div>
+        <div style="font-size:12px;color:var(--ink-3)">${l.type}</div>
+        <button onclick="deleteProductionLog(${l.id})" class="btn btn-danger btn-sm" style="margin-top:4px">🗑</button>
       </div>
     </div>
   `).join('');
@@ -1648,8 +1678,8 @@ function renderRawMat(){
       </div>
       <div class="right">
         <div class="amt">${fmt(rm.stock_qty)}</div>
-        <div style="font-size:12px;color:#888">${rm.unit}</div>
-        <button onclick="openRawmatModal(${rm.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Edit</button>
+        <div style="font-size:12px;color:var(--ink-3)">${rm.unit}</div>
+        <div style="display:flex;gap:4px;margin-top:4px"><button onclick="openRawmatModal(${rm.id})" class="btn btn-secondary btn-sm">Edit</button><button onclick="deleteRawmat(${rm.id})" class="btn btn-danger btn-sm">🗑</button></div>
       </div>
     </div>`;
   }).join('');
@@ -1682,8 +1712,8 @@ function addRecipeRow(rmId,qty){
   div.className='recipe-row';
   div.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
   div.innerHTML=`
-    <select class="rc-rm" style="flex:2;padding:9px;border:1px solid #ddd;border-radius:8px">${rawmatOptions(rmId)}</select>
-    <input class="rc-qty" type="number" min="0.001" step="0.001" value="${qty||1}" style="flex:1;padding:9px;border:1px solid #ddd;border-radius:8px" placeholder="Qty">
+    <select class="rc-rm" style="flex:2;padding:9px;border:1px solid var(--line);border-radius:8px">${rawmatOptions(rmId)}</select>
+    <input class="rc-qty" type="number" min="0.001" step="0.001" value="${qty||1}" style="flex:1;padding:9px;border:1px solid var(--line);border-radius:8px" placeholder="Qty">
     <button type="button" onclick="this.parentNode.remove()" style="border:none;background:#ffebee;color:#f44336;border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer">×</button>`;
   wrap.appendChild(div);
 }
@@ -1731,14 +1761,14 @@ function renderRecipes(){
     const prod=ST.products.find(p=>p.id===+pid);
     return`<div class="card">
       <div style="display:flex;align-items:center;margin-bottom:6px">
-        <h3 style="flex:1;color:#222">${prod?prod.name:'Unknown Product'}</h3>
+        <h3 style="flex:1;color:var(--ink)">${prod?prod.name:'Unknown Product'}</h3>
         <button onclick="openRecipeModal(${pid})" class="btn btn-secondary btn-sm">Edit</button>
       </div>
       ${lines.map(l=>{
         const rm=ST.rawMaterials.find(r=>r.id===l.raw_material_id);
-        return`<div style="display:flex;align-items:center;padding:4px 0;border-bottom:1px solid #f5f5f5">
+        return`<div style="display:flex;align-items:center;padding:4px 0;border-bottom:1px solid var(--fill)">
           <div style="flex:1;font-size:14px">${rm?rm.name:'?'}</div>
-          <div style="font-size:13px;color:#888">${fmt(l.qty_required)} ${rm?rm.unit:''}/unit</div>
+          <div style="font-size:13px;color:var(--ink-3)">${fmt(l.qty_required)} ${rm?rm.unit:''}/unit</div>
         </div>`;
       }).join('')}
     </div>`;
@@ -1783,20 +1813,97 @@ function getOverallPayable(){
 }
 
 // ==================== PURCHASES ====================
-function openPurchaseModal(){
+function openPurchaseModal(editId){
   if(ST.suppliers.length===0){showToast('Add a supplier first','e');return;}
   if(ST.rawMaterials.length===0){showToast('Add raw materials first','e');return;}
+  const p=editId?ST.purchases.find(x=>x.id===editId):null;
+  document.getElementById('purchase-modal-title').textContent=p?'Edit Stock Inward':'Add Stock Inward';
+  document.getElementById('pur-edit-id').value=p?p.id:'';
   document.getElementById('pur-supplier').innerHTML=ST.suppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   document.getElementById('pur-rawmat').innerHTML=ST.rawMaterials.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
-  document.getElementById('pur-qty').value=1;
-  document.getElementById('pur-rate').value=0;
-  document.getElementById('pur-total').value=0;
-  document.getElementById('pur-notes').value='';
-  document.getElementById('pur-is-paid').value=1;
-  setPurPaid(true,document.getElementById('pur-paid-btn'));
-  populateAccountSelect('pur-account');
-  fillPurchaseUnit();
+  document.getElementById('pur-supplier').value=p?p.supplier_id:(ST.suppliers[0]?ST.suppliers[0].id:'');
+  document.getElementById('pur-rawmat').value=p?p.raw_material_id:(ST.rawMaterials[0]?ST.rawMaterials[0].id:'');
+  document.getElementById('pur-qty').value=p?p.qty:1;
+  document.getElementById('pur-rate').value=p?p.rate:0;
+  document.getElementById('pur-total').value=p?p.total:0;
+  document.getElementById('pur-notes').value=p?p.notes||'':'';
+  document.getElementById('pur-is-paid').value=(p?p.paid:true)?1:0;
+  setPurPaid(p?!!p.paid:true,document.getElementById(p&&!p.paid?'pur-unpaid-btn':'pur-paid-btn'));
+  populateAccountSelect('pur-account',p?p.account_id:null);
+  const u=document.getElementById('pur-unit');const rm=ST.rawMaterials.find(r=>r.id===(p?p.raw_material_id:+document.getElementById('pur-rawmat').value));
+  if(u)u.value=rm?rm.unit:'';
+  calcPurchaseTotal();
   openModal('modal-purchase');
+}
+// Reverse a purchase's effects (stock + ledger)
+async function reversePurchase(p){
+  const rm=ST.rawMaterials.find(r=>r.id===p.raw_material_id);
+  if(rm){rm.stock_qty=Math.max(0,rm.stock_qty-p.qty);await dbPut('raw_materials',rm);}
+  if(p.paid&&p.total>0){
+    // add compensating money-IN so the account balance is restored
+    await postAccountTxn(p.account_id||getDefaultAccountId(),p.total,'PURCHASE_REV',p.supplier_name,'Purchase reversed');
+  }
+}
+async function deletePurchase(id){
+  const p=ST.purchases.find(x=>x.id===id); if(!p) return;
+  if(!confirm('Delete this stock-inward bill? Raw-material stock and any payment will be reversed.')) return;
+  await reversePurchase(p);
+  await dbDelete('purchases',id);
+  await loadAll();renderAll();
+  showToast('Purchase bill deleted');
+}
+// ---- Generic + reversal-aware deletes for all entities ----
+async function deleteSimple(store,id,msg,guard){
+  if(guard){const g=guard();if(g){showToast(g,'e');return;}}
+  if(!confirm(msg||'Delete this item? This cannot be undone.')) return;
+  await dbDelete(store,id);
+  await loadAll();renderAll();
+  showToast('Deleted');
+}
+function deleteProduct(id){deleteSimple('products',id,'Delete this product? Past sales keep their record.');}
+function deleteRawmat(id){deleteSimple('raw_materials',id,'Delete this raw material?',()=>ST.recipes.some(r=>r.raw_material_id===id)?'Used in a recipe — remove it there first':'');}
+function deleteCustomer(id){deleteSimple('customers',id,'Delete this customer?',()=>ST.receivables.some(r=>r.customer_id===id&&!r.settled)?'Customer has pending dues':'');}
+function deleteSupplier(id){deleteSimple('suppliers',id,'Delete this supplier?',()=>getSupplierBalance(id)>0?'Supplier has outstanding dues':'');}
+function deleteAccount(id){deleteSimple('accounts',id,'Delete this account?',()=>ST.accountTxns.some(t=>t.account_id===id)?'Account has transactions':(ST.accounts.length<=1?'Keep at least one account':''));}
+async function deleteStaff(id){
+  if(!confirm('Delete this staff member? Their attendance & advances are also removed.')) return;
+  for(const a of ST.attendance.filter(a=>a.staff_id===id)) await dbDelete('attendance',a.id);
+  for(const a of ST.advances.filter(a=>a.staff_id===id)) await dbDelete('advances',a.id);
+  await dbDelete('staff',id);
+  closeModal('modal-staff-detail');
+  await loadAll();renderAll();
+  showToast('Staff removed');
+}
+async function deleteAdvance(id){
+  const a=ST.advances.find(x=>x.id===id); if(!a) return;
+  if(!confirm('Delete this advance? The amount will be returned to the account.')) return;
+  if(a.account_id) await postAccountTxn(a.account_id,a.amount,'ADVANCE_REV',a.staff_name,'Advance deleted');
+  await dbDelete('advances',id);
+  await loadAll();renderAll();
+  if(document.getElementById('modal-staff-detail').classList.contains('open')) renderStaffDetail();
+  showToast('Advance deleted');
+}
+async function deleteReceivable(id){
+  const r=ST.receivables.find(x=>x.id===id); if(!r) return;
+  if(!confirm('Delete this due entry?')) return;
+  await dbDelete('receivables',id);
+  await loadAll();renderAll();
+  showToast('Due removed');
+}
+async function deleteProductionLog(id){
+  const l=ST.productionLogs.find(x=>x.id===id); if(!l) return;
+  if(!confirm('Delete this entry? Stock changes will be reversed.')) return;
+  const prod=ST.products.find(p=>p.id===l.product_id);
+  if(prod){
+    if(l.type==='WASTAGE') prod.stock_qty+=Math.abs(l.qty_produced); // put wasted units back
+    else prod.stock_qty=Math.max(0,prod.stock_qty-l.qty_produced);   // remove produced units
+    await dbPut('products',prod);
+    // restore consumed raw materials
+    if(l.materials_used) for(const m of l.materials_used){const rm=ST.rawMaterials.find(r=>r.id===m.rm_id);if(rm){rm.stock_qty+=m.qty_used;await dbPut('raw_materials',rm);}}
+  }
+  await dbDelete('production_logs',id);
+  await loadAll();renderAll();
+  showToast('Entry reversed');
 }
 function fillPurchaseUnit(){
   const rmid=+document.getElementById('pur-rawmat').value;
@@ -1819,11 +1926,17 @@ function setPurPaid(paid,btn){
   if(g) g.style.display=paid?'block':'none';
 }
 async function savePurchase(){
+  const editId=+document.getElementById('pur-edit-id').value||null;
   const supId=+document.getElementById('pur-supplier').value;
   const rmId=+document.getElementById('pur-rawmat').value;
   const qty=+document.getElementById('pur-qty').value;
   const rate=+document.getElementById('pur-rate').value;
   if(!supId||!rmId||qty<=0){showToast('Invalid input','e');return;}
+  // On edit, reverse the previous version first, then re-add fresh
+  if(editId){
+    const old=ST.purchases.find(x=>x.id===editId);
+    if(old){await reversePurchase(old);await dbDelete('purchases',editId);await loadAll();}
+  }
   const sup=ST.suppliers.find(s=>s.id===supId);
   const rm=ST.rawMaterials.find(r=>r.id===rmId);
   const total=+(qty*rate).toFixed(2);
@@ -1896,9 +2009,9 @@ function renderPurchaseTabs(){
       <div class="info"><h4>${s.name}</h4><p>${s.phone||''}${s.gstin?' · GSTIN: '+s.gstin:''}</p></div>
       <div class="right">
         <div class="amt${bal>0?' text-red':'text-green'}">₹${fmt(bal)}</div>
-        <div style="font-size:11px;color:#888">Outstanding</div>
+        <div style="font-size:11px;color:var(--ink-3)">Outstanding</div>
         ${bal>0?`<button onclick="openPaySupplierModal(${s.id})" class="btn btn-primary btn-sm" style="margin-top:4px">Pay</button>`:''}
-        <button onclick="openSupplierModal(${s.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Edit</button>
+        <div style="display:flex;gap:4px;margin-top:4px"><button onclick="openSupplierModal(${s.id})" class="btn btn-secondary btn-sm">Edit</button><button onclick="deleteSupplier(${s.id})" class="btn btn-danger btn-sm">🗑</button></div>
       </div>
     </div>`;
   }).join('');
@@ -1921,7 +2034,12 @@ function renderPurchaseTabs(){
         <p>${p.supplier_name} · ${p.date_str}</p>
         <p>${fmt(p.qty)} ${p.unit} @ ₹${fmt(p.rate)}</p>
       </div>
-      <div class="right"><div class="amt">₹${fmt(p.total)}</div></div>
+      <div class="right"><div class="amt">₹${fmt(p.total)}</div>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button onclick="openPurchaseModal(${p.id})" class="btn btn-secondary btn-sm">Edit</button>
+          <button onclick="deletePurchase(${p.id})" class="btn btn-danger btn-sm">🗑</button>
+        </div>
+      </div>
     </div>
   `).join('');
   // Payables = unpaid stock-inward / purchase bills, grouped by supplier
@@ -1932,20 +2050,20 @@ function renderPurchaseTabs(){
   if(withBal.length===0){
     paylist.innerHTML='<div class="empty-state"><div class="icon">✅</div><div>No outstanding dues</div></div>';
   }else{
-    let html=`<div class="card" style="background:#FEE7DC"><h3>Total Payable</h3><div class="big text-red">₹${fmt(overall)}</div></div>`;
+    let html=`<div class="card" style="background:var(--brand-soft)"><h3>Total Payable</h3><div class="big text-red">₹${fmt(overall)}</div></div>`;
     html+=withBal.map(s=>{
       const bills=unpaidBills.filter(b=>b.supplier_id===s.id);
       const bal=getSupplierBalance(s.id);
-      const billsHtml=bills.map(b=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f5f5f5;font-size:13px">
+      const billsHtml=bills.map(b=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--fill);font-size:13px">
         <span>${b.raw_material_name} · ${fmt(b.qty)}${b.unit} · ${b.date_str}</span>
         <span class="text-red">₹${fmt(b.total)}</span></div>`).join('');
       return`<div class="card">
         <div style="display:flex;align-items:center">
-          <div style="flex:1"><h3 style="color:#222">${s.name}</h3><div style="font-size:12px;color:#888">${bills.length} unpaid bill${bills.length!=1?'s':''}</div></div>
+          <div style="flex:1"><h3 style="color:var(--ink)">${s.name}</h3><div style="font-size:12px;color:var(--ink-3)">${bills.length} unpaid bill${bills.length!=1?'s':''}</div></div>
           <div style="text-align:right"><div class="amt text-red" style="font-size:18px;font-weight:700">₹${fmt(bal)}</div>
           <button onclick="openPaySupplierModal(${s.id})" class="btn btn-primary btn-sm" style="margin-top:4px">Pay Now</button></div>
         </div>
-        <div style="margin-top:8px">${billsHtml||'<div style="font-size:12px;color:#888">Balance from earlier</div>'}</div>
+        <div style="margin-top:8px">${billsHtml||'<div style="font-size:12px;color:var(--ink-3)">Balance from earlier</div>'}</div>
       </div>`;
     }).join('');
     paylist.innerHTML=html;
@@ -1971,7 +2089,7 @@ function renderReceivables(){
       </div>
       <div class="right">
         <div class="amt text-red">₹${fmt(r.amount)}</div>
-        <button onclick="openCollectModal(${r.id})" class="btn btn-green btn-sm" style="margin-top:4px">Collect</button>
+        <div style="display:flex;gap:4px;margin-top:4px"><button onclick="openCollectModal(${r.id})" class="btn btn-green btn-sm">Collect</button><button onclick="deleteReceivable(${r.id})" class="btn btn-danger btn-sm">🗑</button></div>
       </div>
     </div>
   `).join('');
@@ -2083,16 +2201,16 @@ function renderStaffDetail(){
   let cells='';
   for(let day=1;day<=daysInMonth;day++){
     const st=map[day];
-    const bg=st==='P'?'#43a047':st==='A'?'#f44336':st==='H'?'#fb8c00':'#f0f0f0';
+    const bg=st==='P'?'#43a047':st==='A'?'#f44336':st==='H'?'#fb8c00':'var(--line)';
     const col=st?'#fff':'#999';
     const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     cells+=`<div onclick="cycleAttendance(${s.id},'${dateStr}')" style="width:13.5%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;background:${bg};color:${col};font-size:11px;font-weight:600;cursor:pointer">${day}</div>`;
   }
-  const advRows=pr.advs.length?pr.advs.map(a=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span>${new Date(a.date).toLocaleDateString('en-IN')} ${a.note?'· '+a.note:''}</span><span class="text-amber">₹${fmt(a.amount)}</span></div>`).join(''):'<div style="font-size:12px;color:#888">No advances this month</div>';
+  const advRows=pr.advs.length?pr.advs.map(a=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span>${new Date(a.date).toLocaleDateString('en-IN')} ${a.note?'· '+a.note:''}</span><span class="text-amber">₹${fmt(a.amount)}</span></div>`).join(''):'<div style="font-size:12px;color:var(--ink-3)">No advances this month</div>';
   body.innerHTML=`
     <div style="display:flex;align-items:center;margin-bottom:8px">
       <div style="flex:1">
-        <div style="font-size:12px;color:#888">${s.role||''} · ${s.wage_type==='DAILY'?'Daily ₹'+fmt(s.daily_rate):'Monthly ₹'+fmt(s.monthly_salary)}</div>
+        <div style="font-size:12px;color:var(--ink-3)">${s.role||''} · ${s.wage_type==='DAILY'?'Daily ₹'+fmt(s.daily_rate):'Monthly ₹'+fmt(s.monthly_salary)}</div>
       </div>
       <button onclick="openAddStaffModal(${s.id})" class="btn btn-secondary btn-sm">Edit</button>
     </div>
@@ -2102,7 +2220,7 @@ function renderStaffDetail(){
       <button onclick="shiftAttMonth(1)" class="btn btn-secondary btn-sm">▶</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:2.5%;row-gap:4px">${cells}</div>
-    <div style="font-size:10px;color:#aaa;margin:6px 0">Tap a day to cycle: none → P → A → H</div>
+    <div style="font-size:10px;color:var(--ink-3);margin:6px 0">Tap a day to cycle: none → P → A → H</div>
     <div style="display:flex;gap:8px;margin:8px 0">
       <span class="chip chip-green">Present ${pr.P}</span>
       <span class="chip chip-amber">Half ${pr.H}</span>
@@ -2117,6 +2235,7 @@ function renderStaffDetail(){
     <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:#EA580C"><span>Net Payable</span><span>₹${fmt(pr.net)}</span></div>
     <button onclick="printSalarySlip(${s.id})" class="btn btn-primary" style="margin-top:10px">🖨️ Salary Slip PDF</button>
     <button onclick="openAdvanceFor(${s.id})" class="btn btn-secondary">💵 Give Advance</button>
+    <button onclick="deleteStaff(${s.id})" class="btn btn-danger">🗑️ Delete Staff</button>
     <button onclick="closeModal('modal-staff-detail')" class="btn btn-secondary">Close</button>`;
 }
 function openAdvanceFor(id){
@@ -2159,7 +2278,7 @@ function printSalarySlip(staffId){
   const advTotal=advs.reduce((t,a)=>t+a.amount,0);
   const net=earned-advTotal;
   const line=(t,v,bold)=>`<div style="display:flex;justify-content:space-between;padding:3px 0;${bold?'font-weight:700;font-size:15px':''}"><span>${t}</span><span>${v}</span></div>`;
-  const advRows=advs.length?advs.map(a=>`<tr><td style="padding:2px 0">${new Date(a.date).toLocaleDateString('en-IN')}</td><td>${a.note||'Advance'}</td><td style="text-align:right">₹${fmt(a.amount)}</td></tr>`).join(''):'<tr><td colspan="3" style="color:#888;padding:4px 0">No advances this month</td></tr>';
+  const advRows=advs.length?advs.map(a=>`<tr><td style="padding:2px 0">${new Date(a.date).toLocaleDateString('en-IN')}</td><td>${a.note||'Advance'}</td><td style="text-align:right">₹${fmt(a.amount)}</td></tr>`).join(''):'<tr><td colspan="3" style="color:var(--ink-3);padding:4px 0">No advances this month</td></tr>';
   const html=`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:18px;font-weight:700">${ST.settings.name}</div>
@@ -2187,7 +2306,7 @@ function printSalarySlip(staffId){
     <div style="border-top:2px solid #333;margin-top:10px;padding-top:8px">
       ${line('NET PAYABLE','₹'+fmt(net),true)}
     </div>
-    <div style="margin-top:30px;display:flex;justify-content:space-between;font-size:12px;color:#555">
+    <div style="margin-top:30px;display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2)">
       <span>Employee Sign</span><span>Authorised Sign</span>
     </div>`;
   document.getElementById('receipt-content').innerHTML=html;
@@ -2284,7 +2403,7 @@ function renderAccounts(){
         <div class="right">
           <div class="amt${bal<0?' text-red':''}">₹${fmt(bal)}</div>
           <button onclick="openLedger(${a.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Ledger</button>
-          <button onclick="openAccountModal(${a.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Edit</button>
+          <div style="display:flex;gap:4px;margin-top:4px"><button onclick="openAccountModal(${a.id})" class="btn btn-secondary btn-sm">Edit</button><button onclick="deleteAccount(${a.id})" class="btn btn-danger btn-sm">🗑</button></div>
         </div>
       </div>`;
     }).join('');
@@ -2335,11 +2454,11 @@ function renderLedger(){
     <div style="flex:1;background:#e8f5e9;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#43a047">IN</div><div style="font-weight:700;color:#43a047">₹${fmt(inTot)}</div></div>
     <div style="flex:1;background:#ffebee;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#f44336">OUT</div><div style="font-weight:700;color:#f44336">₹${fmt(outTot)}</div></div>
   </div>`;
-  const openingRow=`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;color:#888"><span>Opening balance</span><span>₹${fmt(acc.opening_balance||0)}</span></div>`;
+  const openingRow=`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);color:var(--ink-3)"><span>Opening balance</span><span>₹${fmt(acc.opening_balance||0)}</span></div>`;
   const rows=txns.length===0?'<div class="empty-state"><div>No transactions in range</div></div>':txns.map(t=>{
     const inc=t.amount>=0;
-    return`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5">
-      <div><div style="font-size:13px;font-weight:600">${t.type} ${t.ref?'· '+t.ref:''}</div><div style="font-size:11px;color:#888">${t.date_str}</div></div>
+    return`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--fill)">
+      <div><div style="font-size:13px;font-weight:600">${t.type} ${t.ref?'· '+t.ref:''}</div><div style="font-size:11px;color:var(--ink-3)">${t.date_str}</div></div>
       <div class="${inc?'text-green':'text-red'}" style="font-weight:700">${inc?'+':''}₹${fmt(t.amount)}</div>
     </div>`;
   }).join('');
@@ -2357,15 +2476,15 @@ function printLedger(){
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:18px;font-weight:700">${ST.settings.name}</div>
       <div style="font-size:13px">Account Ledger — ${acc.name}</div>
-      <div style="font-size:12px;color:#555">${period}</div>
+      <div style="font-size:12px;color:var(--ink-2)">${period}</div>
     </div>
     <div style="display:flex;justify-content:space-between;border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:6px 0;margin-bottom:8px;font-size:13px">
       <span>Money In: <b style="color:#43a047">₹${fmt(inTot)}</b></span>
       <span>Money Out: <b style="color:#f44336">₹${fmt(outTot)}</b></span>
     </div>
     <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr style="border-bottom:1px solid #eee"><th style="text-align:left">Date</th><th style="text-align:left">Details</th><th style="text-align:right">Amount</th></tr>
-      ${rows||'<tr><td colspan="3" style="text-align:center;padding:10px;color:#888">No transactions</td></tr>'}
+      <tr style="border-bottom:1px solid var(--line)"><th style="text-align:left">Date</th><th style="text-align:left">Details</th><th style="text-align:right">Amount</th></tr>
+      ${rows||'<tr><td colspan="3" style="text-align:center;padding:10px;color:var(--ink-3)">No transactions</td></tr>'}
     </table>
     <div style="border-top:1px dashed #ccc;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700">
       <span>Closing Balance</span><span>₹${fmt(getAccountBalance(acc.id))}</span>
@@ -2393,7 +2512,7 @@ function renderStaff(){
       return`<div class="list-item">
         <div style="font-size:28px">👤</div>
         <div class="info"><h4>${s.name}</h4><p>${s.role||''} · ${wage}</p>${adv>0?`<p style="color:#fb8c00">Advance: ₹${fmt(adv)}</p>`:''}</div>
-        <div class="right"><div style="font-size:12px;color:#888">${s.phone||''}</div><button onclick="openAddStaffModal(${s.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Edit</button></div>
+        <div class="right"><div style="font-size:12px;color:var(--ink-3)">${s.phone||''}</div><button onclick="openAddStaffModal(${s.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Edit</button></div>
       </div>`;
     }).join('');
   }
@@ -2410,9 +2529,9 @@ function renderStaff(){
         <div style="font-size:28px">👤</div>
         <div class="info"><h4>${s.name}</h4><p>${s.role||''}</p></div>
         <div class="right" style="display:flex;gap:6px;align-items:center">
-          <button onclick="markAttendance(${s.id},'P')" class="btn btn-sm" style="background:${att&&att.status==='P'?'#43a047':'#eee'};color:${att&&att.status==='P'?'#fff':'#333'}">P</button>
-          <button onclick="markAttendance(${s.id},'A')" class="btn btn-sm" style="background:${att&&att.status==='A'?'#f44336':'#eee'};color:${att&&att.status==='A'?'#fff':'#333'}">A</button>
-          <button onclick="markAttendance(${s.id},'H')" class="btn btn-sm" style="background:${att&&att.status==='H'?'#fb8c00':'#eee'};color:${att&&att.status==='H'?'#fff':'#333'}">H</button>
+          <button onclick="markAttendance(${s.id},'P')" class="btn btn-sm" style="background:${att&&att.status==='P'?'#43a047':'var(--line)'};color:${att&&att.status==='P'?'#fff':'#333'}">P</button>
+          <button onclick="markAttendance(${s.id},'A')" class="btn btn-sm" style="background:${att&&att.status==='A'?'#f44336':'var(--line)'};color:${att&&att.status==='A'?'#fff':'#333'}">A</button>
+          <button onclick="markAttendance(${s.id},'H')" class="btn btn-sm" style="background:${att&&att.status==='H'?'#fb8c00':'var(--line)'};color:${att&&att.status==='H'?'#fff':'#333'}">H</button>
         </div>
       </div>`;
     }).join('');
@@ -2430,17 +2549,17 @@ function renderStaff(){
     if(ST.staff.length===0){attSum.innerHTML=monthHeader+'<div class="empty-state"><div>No staff</div></div>';}
     else{
       const totalPay=ST.staff.reduce((t,s)=>t+staffPayroll(s.id,sel).net,0);
-      const totalCard=`<div class="card" style="background:#FEE7DC;margin:0 12px 8px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">Total to pay (${monthName})</span><span class="big" style="font-size:22px">₹${fmt(totalPay)}</span></div></div>`;
+      const totalCard=`<div class="card" style="background:var(--brand-soft);margin:0 12px 8px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">Total to pay (${monthName})</span><span class="big" style="font-size:22px">₹${fmt(totalPay)}</span></div></div>`;
       attSum.innerHTML=monthHeader+totalCard+ST.staff.map(s=>{
         const pr=staffPayroll(s.id,sel);
         return`<div class="list-item" onclick="openStaffDetail(${s.id})" style="cursor:pointer">
           <div style="font-size:28px">👤</div>
           <div class="info"><h4>${s.name}</h4>
             <p><span class="chip chip-green">P ${pr.P}</span> <span class="chip chip-amber">H ${pr.H}</span> <span class="chip chip-red">A ${pr.A}</span></p>
-            <p style="font-size:11px;color:#888">Earned ₹${fmt(pr.earned)}${pr.advTotal?' − Adv ₹'+fmt(pr.advTotal):''}</p></div>
+            <p style="font-size:11px;color:var(--ink-3)">Earned ₹${fmt(pr.earned)}${pr.advTotal?' − Adv ₹'+fmt(pr.advTotal):''}</p></div>
           <div class="right">
             <div class="amt${pr.net<0?' text-red':''}" style="font-size:18px">₹${fmt(pr.net)}</div>
-            <div style="font-size:10px;color:#888">to pay ›</div>
+            <div style="font-size:10px;color:var(--ink-3)">to pay ›</div>
           </div>
         </div>`;
       }).join('');
@@ -2455,7 +2574,7 @@ function renderStaff(){
       <div class="list-item">
         <div style="font-size:28px">💵</div>
         <div class="info"><h4>${a.staff_name}</h4><p>${new Date(a.date).toLocaleDateString('en-IN')} · ${a.note||''}</p></div>
-        <div class="right"><div class="amt text-amber">₹${fmt(a.amount)}</div></div>
+        <div class="right"><div class="amt text-amber">₹${fmt(a.amount)}</div><button onclick="deleteAdvance(${a.id})" class="btn btn-danger btn-sm" style="margin-top:4px">🗑</button></div>
       </div>
     `).join('');
   }
@@ -2470,23 +2589,75 @@ function renderSalesHistory(){
   if(to) sales=sales.filter(s=>new Date(s.date)<=new Date(to+'T23:59:59'));
   const total=sales.reduce((s,x)=>s+x.total,0);
   document.getElementById('sales-summary-bar').innerHTML=`
-    <div style="display:flex;gap:16px;font-size:13px;color:#555">
+    <div style="display:flex;gap:16px;font-size:13px;color:var(--ink-2)">
       <span><b>${sales.length}</b> orders</span>
       <span><b>₹${fmt(total)}</b> revenue</span>
     </div>`;
   const list=document.getElementById('sales-list');
   if(sales.length===0){list.innerHTML='<div class="empty-state"><div class="icon">📊</div><div>No sales in range</div></div>';return;}
   list.innerHTML=sales.map(s=>`
-    <div class="list-item" onclick="doPrint(${JSON.stringify(s).replace(/'/g,'&apos;')})">
+    <div class="list-item" onclick="openSaleDetail(${s.id})">
       <div style="font-size:28px">🧾</div>
       <div class="info">
         <h4>${s.invoice_no}</h4>
         <p>${s.date_str} · ${s.customer_name} · ${s.pay_mode}</p>
         <p style="font-size:11px">${s.items.map(i=>i.name+'×'+i.qty).join(', ')}</p>
       </div>
-      <div class="right"><div class="amt">₹${fmt(s.total)}</div></div>
+      <div class="right"><div class="amt">₹${fmt(s.total)}</div><div style="font-size:10px;color:var(--ink-3)">tap ›</div></div>
     </div>
   `).join('');
+}
+// ---- Sale detail: reprint / reopen / delete ----
+function openSaleDetail(saleId){
+  const s=ST.sales.find(x=>x.id===saleId);
+  if(!s){showToast('Sale not found','e');return;}
+  document.getElementById('sale-detail-title').textContent=s.invoice_no;
+  const acc=ST.accounts.find(a=>a.id===s.account_id);
+  document.getElementById('sale-detail-body').innerHTML=`
+    <p style="font-size:13px;color:var(--ink-2)">${s.date_str} · ${s.customer_name} · ${s.pay_mode}${acc?' → '+acc.name:''}${s.order_type==='DINEIN'?' · Table '+(s.table_no||'—'):''}</p>
+    <div style="margin:10px 0">${s.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--line);font-size:14px"><span>${i.name} ×${i.qty}</span><span>₹${fmt(i.price*i.qty)}</span></div>`).join('')}</div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;color:var(--brand)"><span>Total</span><span>₹${fmt(s.total)}</span></div>
+    <button class="btn btn-secondary" onclick="closeModal('modal-sale');doPrint(ST.sales.find(x=>x.id===${saleId}))">🖨️ Reprint / PDF</button>
+    <button class="btn btn-primary" onclick="reopenSale(${saleId})">✏️ Reopen &amp; Edit</button>
+    <button class="btn btn-danger" onclick="deleteSaleConfirm(${saleId})">🗑️ Delete Sale</button>
+    <button class="btn btn-secondary" onclick="closeModal('modal-sale')">Close</button>`;
+  openModal('modal-sale');
+}
+// Reverse a sale's side-effects (stock, receivable, account ledger)
+async function reverseSale(s){
+  // restore product stock
+  const tx=db.transaction('products','readwrite');
+  for(const it of s.items){const p=ST.products.find(x=>x.id===it.id);if(p){p.stock_qty+=it.qty;tx.objectStore('products').put(p);}}
+  await new Promise(r=>tx.oncomplete=r);
+  // remove any receivable for this sale
+  for(const r of ST.receivables.filter(r=>r.sale_id===s.id)) await dbDelete('receivables',r.id);
+  // reverse account ledger entry (delete the SALE posting for this invoice)
+  for(const t of ST.accountTxns.filter(t=>t.type==='SALE'&&t.ref===s.invoice_no)) await dbDelete('account_txns',t.id);
+}
+async function deleteSaleConfirm(saleId){
+  if(!confirm('Delete this sale? Stock will be restored and any dues/ledger entry reversed.')) return;
+  const s=ST.sales.find(x=>x.id===saleId); if(!s) return;
+  await reverseSale(s);
+  await dbDelete('sales',saleId);
+  closeModal('modal-sale');
+  await loadAll();renderAll();renderSalesHistory();
+  showToast('Sale deleted & reversed');
+}
+async function reopenSale(saleId){
+  const s=ST.sales.find(x=>x.id===saleId); if(!s) return;
+  if(!confirm('Reopen this bill for editing? The original will be reversed and its items loaded into POS.')) return;
+  await reverseSale(s);
+  await dbDelete('sales',saleId);
+  await loadAll();
+  // load into cart
+  clearCart();
+  ST.cart=s.items.map(i=>({...i}));
+  ST.customer=s.customer_id?ST.customers.find(c=>c.id===s.customer_id)||null:null;
+  closeModal('modal-sale');
+  showPage('pos');
+  syncCheckoutUI();updateCartSummary();renderCartItems();renderPOS();
+  if(!ST.cartOpen) toggleCart();
+  showToast('Bill reopened — edit and confirm again');
 }
 
 // ==================== PRODUCTS ====================
@@ -2550,7 +2721,10 @@ function renderProductsList(){
       <div class="info"><h4>${p.name}</h4><p>${p.category} · Stock: ${p.stock_qty}</p></div>
       <div class="right">
         <div class="amt">₹${fmt(p.price)}</div>
-        <button onclick="openProductModal(${p.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Edit</button>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button onclick="openProductModal(${p.id})" class="btn btn-secondary btn-sm">Edit</button>
+          <button onclick="deleteProduct(${p.id})" class="btn btn-danger btn-sm">🗑</button>
+        </div>
       </div>
     </div>
   `).join('');
@@ -2584,7 +2758,7 @@ function renderCustomers(){
     <div class="list-item">
       <div style="font-size:28px">👤</div>
       <div class="info"><h4>${c.name}</h4><p>${c.phone||''} ${c.address||''}</p></div>
-      <div class="right"><button onclick="openAddCustomerModal(${c.id})" class="btn btn-secondary btn-sm">Edit</button></div>
+      <div class="right"><div style="display:flex;gap:4px"><button onclick="openAddCustomerModal(${c.id})" class="btn btn-secondary btn-sm">Edit</button><button onclick="deleteCustomer(${c.id})" class="btn btn-danger btn-sm">🗑</button></div></div>
     </div>
   `).join('');
 }
@@ -2592,6 +2766,8 @@ function renderCustomers(){
 // ==================== SETTINGS ====================
 function populateSettingsForm(){
   const s=ST.settings;
+  const brandTitle=document.getElementById('dash-brand');if(brandTitle) brandTitle.textContent='🧁 '+(s.brand||'Crust POS');
+  const bd=document.getElementById('s-brand');if(bd) bd.value=s.brand||'';
   const n=document.getElementById('s-name');if(n) n.value=s.name||'';
   const a=document.getElementById('s-addr');if(a) a.value=s.address||'';
   const p=document.getElementById('s-phone');if(p) p.value=s.phone||'';
