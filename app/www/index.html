@@ -158,7 +158,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
       <button class="btn btn-secondary" style="flex:1" onclick="showPage('purchase')">📦 Buy Stock</button>
-      <button class="btn btn-secondary" style="flex:1" onclick="showPage('receivables')">💰 Dues</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="showPage('tables')">🍽️ Tables</button>
     </div>
   </div>
 </div>
@@ -433,14 +433,15 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
   </div>
 </div>
 
-<!-- Recipe Modal -->
+<!-- Recipe Modal (multiple ingredients) -->
 <div class="modal-bg" id="modal-recipe">
   <div class="modal">
-    <h2>Add Recipe Line</h2>
-    <div class="form-group"><label>Product</label><select id="recipe-product" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
-    <div class="form-group"><label>Raw Material</label><select id="recipe-rawmat" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
-    <div class="form-group"><label>Qty Required (per unit of product)</label><input id="recipe-qty" type="number" min="0.001" step="0.001" value="1"></div>
-    <button class="btn btn-primary" onclick="saveRecipeLine()">Save</button>
+    <h2>Recipe / BOM</h2>
+    <div class="form-group"><label>Product</label><select id="recipe-product" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" onchange="loadRecipeForProduct()"></select></div>
+    <label style="font-size:12px;color:#666">Ingredients (per 1 unit of product)</label>
+    <div id="recipe-rows"></div>
+    <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:6px" onclick="addRecipeRow()">+ Add Ingredient</button>
+    <button class="btn btn-primary" onclick="saveRecipe()">Save Recipe</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-recipe')">Cancel</button>
   </div>
 </div>
@@ -554,11 +555,21 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
 <!-- Add Staff Modal -->
 <div class="modal-bg" id="modal-add-staff">
   <div class="modal">
-    <h2>Add Staff</h2>
+    <h2 id="staff-modal-title">Add Staff</h2>
+    <input type="hidden" id="staff-id">
     <div class="form-group"><label>Name</label><input id="staff-name" type="text"></div>
     <div class="form-group"><label>Phone</label><input id="staff-phone" type="tel"></div>
     <div class="form-group"><label>Role</label><input id="staff-role" type="text" placeholder="e.g. Baker, Cashier"></div>
-    <div class="form-group"><label>Monthly Salary (₹)</label><input id="staff-salary" type="number" min="0"></div>
+    <div class="form-group">
+      <label>Pay Type</label>
+      <div class="pay-modes" id="wage-type-modes">
+        <button type="button" class="pay-mode-btn active" onclick="setWageType('MONTHLY',this)">📅 Fixed Monthly</button>
+        <button type="button" class="pay-mode-btn" onclick="setWageType('DAILY',this)">🗓️ Daily Wage</button>
+      </div>
+      <input type="hidden" id="staff-wage-type" value="MONTHLY">
+    </div>
+    <div class="form-group" id="staff-salary-group"><label>Monthly Salary (₹)</label><input id="staff-salary" type="number" min="0"></div>
+    <div class="form-group" id="staff-daily-group" style="display:none"><label>Daily Rate (₹/day)</label><input id="staff-daily" type="number" min="0"></div>
     <button class="btn btn-primary" onclick="saveStaff()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-add-staff')">Cancel</button>
   </div>
@@ -1582,23 +1593,59 @@ function checkLowStock(){
 }
 
 // ==================== RECIPES ====================
-function openRecipeModal(){
+function openRecipeModal(productId){
+  if(ST.products.length===0){showToast('Add a product first','e');return;}
+  if(ST.rawMaterials.length===0){showToast('Add raw materials first','e');return;}
   document.getElementById('recipe-product').innerHTML=ST.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-  document.getElementById('recipe-rawmat').innerHTML=ST.rawMaterials.map(r=>`<option value="${r.id}">${r.name} (${r.unit})</option>`).join('');
+  if(productId) document.getElementById('recipe-product').value=productId;
+  loadRecipeForProduct();
   openModal('modal-recipe');
 }
-async function saveRecipeLine(){
+// Options for an ingredient <select>
+function rawmatOptions(selectedId){
+  return ST.rawMaterials.map(r=>`<option value="${r.id}" ${r.id===selectedId?'selected':''}>${r.name} (${r.unit})</option>`).join('');
+}
+function addRecipeRow(rmId,qty){
+  const wrap=document.getElementById('recipe-rows');
+  const div=document.createElement('div');
+  div.className='recipe-row';
+  div.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
+  div.innerHTML=`
+    <select class="rc-rm" style="flex:2;padding:9px;border:1px solid #ddd;border-radius:8px">${rawmatOptions(rmId)}</select>
+    <input class="rc-qty" type="number" min="0.001" step="0.001" value="${qty||1}" style="flex:1;padding:9px;border:1px solid #ddd;border-radius:8px" placeholder="Qty">
+    <button type="button" onclick="this.parentNode.remove()" style="border:none;background:#ffebee;color:#f44336;border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer">×</button>`;
+  wrap.appendChild(div);
+}
+// Load existing recipe rows for the selected product into the editor
+function loadRecipeForProduct(){
   const pid=+document.getElementById('recipe-product').value;
-  const rmid=+document.getElementById('recipe-rawmat').value;
-  const qty=+document.getElementById('recipe-qty').value;
-  if(!pid||!rmid||qty<=0){showToast('Invalid input','e');return;}
-  // Remove old line for same product+rawmat
-  const existing=ST.recipes.find(r=>r.product_id===pid&&r.raw_material_id===rmid);
-  if(existing) await dbDelete('recipes',existing.id);
-  await dbAdd('recipes',{product_id:pid,raw_material_id:rmid,qty_required:qty});
+  const wrap=document.getElementById('recipe-rows');
+  wrap.innerHTML='';
+  const lines=ST.recipes.filter(r=>r.product_id===pid);
+  if(lines.length===0){addRecipeRow();}
+  else lines.forEach(l=>addRecipeRow(l.raw_material_id,l.qty_required));
+}
+async function saveRecipe(){
+  const pid=+document.getElementById('recipe-product').value;
+  if(!pid){showToast('Pick a product','e');return;}
+  const rows=[...document.querySelectorAll('#recipe-rows .recipe-row')];
+  const lines=[];
+  const seen=new Set();
+  for(const row of rows){
+    const rmid=+row.querySelector('.rc-rm').value;
+    const qty=+row.querySelector('.rc-qty').value;
+    if(!rmid||qty<=0) continue;
+    if(seen.has(rmid)){showToast('Duplicate ingredient — merge quantities','e');return;}
+    seen.add(rmid);
+    lines.push({product_id:pid,raw_material_id:rmid,qty_required:qty});
+  }
+  // Replace all existing lines for this product
+  const old=ST.recipes.filter(r=>r.product_id===pid);
+  for(const o of old) await dbDelete('recipes',o.id);
+  for(const l of lines) await dbAdd('recipes',l);
   closeModal('modal-recipe');
   await loadAll();renderRecipes();
-  showToast('Recipe saved');
+  showToast(lines.length?'Recipe saved':'Recipe cleared');
 }
 function renderRecipes(){
   const list=document.getElementById('recipe-list');
@@ -1612,13 +1659,15 @@ function renderRecipes(){
   list.innerHTML=Object.entries(grouped).map(([pid,lines])=>{
     const prod=ST.products.find(p=>p.id===+pid);
     return`<div class="card">
-      <h3>${prod?prod.name:'Unknown Product'}</h3>
+      <div style="display:flex;align-items:center;margin-bottom:6px">
+        <h3 style="flex:1;color:#222">${prod?prod.name:'Unknown Product'}</h3>
+        <button onclick="openRecipeModal(${pid})" class="btn btn-secondary btn-sm">Edit</button>
+      </div>
       ${lines.map(l=>{
         const rm=ST.rawMaterials.find(r=>r.id===l.raw_material_id);
         return`<div style="display:flex;align-items:center;padding:4px 0;border-bottom:1px solid #f5f5f5">
           <div style="flex:1;font-size:14px">${rm?rm.name:'?'}</div>
           <div style="font-size:13px;color:#888">${fmt(l.qty_required)} ${rm?rm.unit:''}/unit</div>
-          <button onclick="deleteRecipeLine(${l.id})" style="border:none;background:none;color:#f44336;cursor:pointer;font-size:16px;margin-left:8px">×</button>
         </div>`;
       }).join('')}
     </div>`;
@@ -1876,30 +1925,84 @@ async function confirmCollect(){
 }
 
 // ==================== STAFF ====================
-function openAddStaffModal(){
-  document.getElementById('staff-name').value='';
-  document.getElementById('staff-phone').value='';
-  document.getElementById('staff-role').value='';
-  document.getElementById('staff-salary').value='';
+function setWageType(type,btn){
+  document.getElementById('staff-wage-type').value=type;
+  document.querySelectorAll('#wage-type-modes .pay-mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('staff-salary-group').style.display=(type==='MONTHLY')?'block':'none';
+  document.getElementById('staff-daily-group').style.display=(type==='DAILY')?'block':'none';
+}
+function openAddStaffModal(id){
+  const s=id?ST.staff.find(x=>x.id===id):null;
+  document.getElementById('staff-modal-title').textContent=s?'Edit Staff':'Add Staff';
+  document.getElementById('staff-id').value=s?s.id:'';
+  document.getElementById('staff-name').value=s?s.name:'';
+  document.getElementById('staff-phone').value=s?s.phone||'':'';
+  document.getElementById('staff-role').value=s?s.role||'':'';
+  document.getElementById('staff-salary').value=s?s.monthly_salary||'':'';
+  document.getElementById('staff-daily').value=s?s.daily_rate||'':'';
+  const wt=(s&&s.wage_type)?s.wage_type:'MONTHLY';
+  const btns=document.querySelectorAll('#wage-type-modes .pay-mode-btn');
+  setWageType(wt,wt==='DAILY'?btns[1]:btns[0]);
   openModal('modal-add-staff');
 }
 async function saveStaff(){
+  const id=+document.getElementById('staff-id').value||null;
   const name=document.getElementById('staff-name').value.trim();
   if(!name){showToast('Enter name','e');return;}
-  await dbAdd('staff',{
+  const wageType=document.getElementById('staff-wage-type').value;
+  const obj={
     name,phone:document.getElementById('staff-phone').value,
     role:document.getElementById('staff-role').value,
-    monthly_salary:+document.getElementById('staff-salary').value,
-    join_date:new Date().toISOString(),is_active:true
-  });
+    wage_type:wageType,
+    monthly_salary:+document.getElementById('staff-salary').value||0,
+    daily_rate:+document.getElementById('staff-daily').value||0,
+    is_active:true
+  };
+  if(id){
+    const cur=ST.staff.find(s=>s.id===id)||{};
+    await dbPut('staff',{...cur,...obj,id});
+  }else{
+    await dbAdd('staff',{...obj,join_date:new Date().toISOString()});
+  }
   closeModal('modal-add-staff');
   await loadAll();renderStaff();
-  showToast('Staff added');
+  showToast('Staff saved');
+}
+// Per-day wage rate for a staff
+function staffDailyRate(s){
+  if(s.wage_type==='DAILY') return s.daily_rate||0;
+  return s.monthly_salary?s.monthly_salary/30:0;
 }
 function getAttDate(){
   const el=document.getElementById('att-date');
   const v=el&&el.value?el.value:new Date().toISOString().slice(0,10);
   return v;
+}
+// Move the attendance month by n months (keeps the day within range)
+function shiftAttMonth(n){
+  const el=document.getElementById('att-date');
+  const cur=new Date(getAttDate());
+  const nd=new Date(cur.getFullYear(),cur.getMonth()+n,1);
+  // clamp day to month length
+  const day=Math.min(cur.getDate(),new Date(nd.getFullYear(),nd.getMonth()+1,0).getDate());
+  nd.setDate(day);
+  if(el) el.value=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-${String(nd.getDate()).padStart(2,'0')}`;
+  renderStaff();
+}
+// Cycle a day's status: none -> P -> A -> H -> none
+async function cycleAttendance(staffId,dateStr){
+  const dayKey=new Date(dateStr).toDateString();
+  const existing=ST.attendance.find(a=>a.staff_id===staffId&&new Date(a.date).toDateString()===dayKey);
+  const order={undefined:'P','P':'A','A':'H','H':null};
+  const next=order[existing?existing.status:undefined];
+  if(existing){
+    if(next===null){await dbDelete('attendance',existing.id);}
+    else{existing.status=next;await dbPut('attendance',existing);}
+  }else if(next){
+    await dbAdd('attendance',{staff_id:staffId,date:new Date(dateStr).toISOString(),status:next,check_in:new Date().toTimeString().slice(0,5)});
+  }
+  await loadAll();renderStaff();
 }
 async function markAttendance(staffId,status){
   const dateStr=getAttDate();
@@ -2080,10 +2183,11 @@ function renderStaff(){
     if(ST.staff.length===0){list.innerHTML='<div class="empty-state"><div class="icon">👤</div><div>No staff yet</div></div>';}
     else list.innerHTML=ST.staff.map(s=>{
       const adv=ST.advances.filter(a=>a.staff_id===s.id).reduce((t,a)=>t+a.amount,0);
+      const wage=(s.wage_type==='DAILY')?`₹${fmt(s.daily_rate)}/day`:`₹${fmt(s.monthly_salary)}/mo`;
       return`<div class="list-item">
         <div style="font-size:28px">👤</div>
-        <div class="info"><h4>${s.name}</h4><p>${s.role||''} · ₹${fmt(s.monthly_salary)}/mo</p>${adv>0?`<p style="color:#fb8c00">Advance: ₹${fmt(adv)}</p>`:''}</div>
-        <div class="right"><div style="font-size:12px;color:#888">${s.phone||''}</div></div>
+        <div class="info"><h4>${s.name}</h4><p>${s.role||''} · ${wage}</p>${adv>0?`<p style="color:#fb8c00">Advance: ₹${fmt(adv)}</p>`:''}</div>
+        <div class="right"><div style="font-size:12px;color:#888">${s.phone||''}</div><button onclick="openAddStaffModal(${s.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Edit</button></div>
       </div>`;
     }).join('');
   }
@@ -2107,27 +2211,52 @@ function renderStaff(){
       </div>`;
     }).join('');
   }
-  // Monthly summary (of the selected date's month)
+  // Monthly attendance cards (calendar) for the selected date's month
   const attSum=document.getElementById('attendance-summary');
   if(attSum){
     const sel=new Date(getAttDate());
-    const ym=sel.getFullYear()+'-'+sel.getMonth();
+    const year=sel.getFullYear(), month=sel.getMonth();
+    const ym=year+'-'+month;
+    const monthName=sel.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    const monthHeader=`<div style="display:flex;align-items:center;gap:10px;padding:0 12px 8px">
+      <button onclick="shiftAttMonth(-1)" class="btn btn-secondary btn-sm">◀</button>
+      <div style="flex:1;text-align:center;font-weight:700">${monthName}</div>
+      <button onclick="shiftAttMonth(1)" class="btn btn-secondary btn-sm">▶</button>
+    </div>`;
     if(ST.staff.length===0){attSum.innerHTML='';}
-    else attSum.innerHTML=ST.staff.map(s=>{
-      const recs=ST.attendance.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d.getFullYear()+'-'+d.getMonth()===ym;});
-      const P=recs.filter(a=>a.status==='P').length;
-      const A=recs.filter(a=>a.status==='A').length;
-      const H=recs.filter(a=>a.status==='H').length;
+    else attSum.innerHTML=monthHeader+ST.staff.map(s=>{
+      // Build status map for this staff/month
+      const map={};
+      ST.attendance.forEach(a=>{const d=new Date(a.date);if(a.staff_id===s.id&&d.getFullYear()===year&&d.getMonth()===month) map[d.getDate()]=a.status;});
+      let P=0,A=0,H=0;
+      let cells='';
+      for(let day=1;day<=daysInMonth;day++){
+        const st=map[day];
+        if(st==='P')P++;else if(st==='A')A++;else if(st==='H')H++;
+        const bg=st==='P'?'#43a047':st==='A'?'#f44336':st==='H'?'#fb8c00':'#f0f0f0';
+        const col=st?'#fff':'#999';
+        const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        cells+=`<div onclick="cycleAttendance(${s.id},'${dateStr}')" style="width:13.5%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;background:${bg};color:${col};font-size:11px;font-weight:600;cursor:pointer">${day}</div>`;
+      }
       const payDays=P+H*0.5;
-      const perDay=s.monthly_salary?s.monthly_salary/30:0;
-      const earned=Math.round(perDay*payDays);
-      const advMonth=ST.advances.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d.getFullYear()+'-'+d.getMonth()===ym;}).reduce((t,a)=>t+a.amount,0);
+      const earned=Math.round(staffDailyRate(s)*payDays);
+      const advMonth=ST.advances.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d.getFullYear()===year&&d.getMonth()===month;}).reduce((t,a)=>t+a.amount,0);
       const net=earned-advMonth;
-      return`<div class="list-item">
-        <div style="font-size:24px">📅</div>
-        <div class="info"><h4>${s.name}</h4><p><span class="chip chip-green">P ${P}</span> <span class="chip chip-red">A ${A}</span> <span class="chip chip-amber">H ${H}</span></p>
-          <p style="font-size:11px;color:#888">Earned ₹${fmt(earned)}${advMonth?' − Adv ₹'+fmt(advMonth):''}</p></div>
-        <div class="right"><div class="amt${net<0?' text-red':''}">₹${fmt(net)}</div><div style="font-size:11px;color:#888">Net payable</div></div>
+      return`<div class="card">
+        <div style="display:flex;align-items:center;margin-bottom:8px">
+          <div style="flex:1"><h3 style="color:#222">${s.name}</h3>
+            <div style="font-size:11px;color:#888">${s.wage_type==='DAILY'?'Daily ₹'+fmt(s.daily_rate):'Monthly ₹'+fmt(s.monthly_salary)}</div></div>
+          <div style="text-align:right"><div class="amt${net<0?' text-red':''}" style="font-size:18px;font-weight:700">₹${fmt(net)}</div><div style="font-size:11px;color:#888">Net payable</div></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:2.5%;row-gap:4px">${cells}</div>
+        <div style="margin-top:8px;font-size:12px;color:#666;display:flex;gap:10px;flex-wrap:wrap">
+          <span><span class="chip chip-green">P ${P}</span></span>
+          <span><span class="chip chip-red">A ${A}</span></span>
+          <span><span class="chip chip-amber">H ${H}</span></span>
+          <span style="margin-left:auto">Earned ₹${fmt(earned)}${advMonth?' − Adv ₹'+fmt(advMonth):''}</span>
+        </div>
+        <div style="font-size:10px;color:#aaa;margin-top:4px">Tap a day to cycle: none → P → A → H</div>
       </div>`;
     }).join('');
   }
