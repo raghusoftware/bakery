@@ -1990,6 +1990,60 @@ function shiftAttMonth(n){
   if(el) el.value=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-${String(nd.getDate()).padStart(2,'0')}`;
   renderStaff();
 }
+// Generate a printable monthly salary slip (attendance + advances + net payable)
+function printSalarySlip(staffId){
+  const s=ST.staff.find(x=>x.id===staffId);
+  if(!s) return;
+  const sel=new Date(getAttDate());
+  const year=sel.getFullYear(), month=sel.getMonth();
+  const monthName=sel.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const recs=ST.attendance.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d.getFullYear()===year&&d.getMonth()===month;});
+  const P=recs.filter(a=>a.status==='P').length;
+  const A=recs.filter(a=>a.status==='A').length;
+  const H=recs.filter(a=>a.status==='H').length;
+  const payDays=P+H*0.5;
+  const rate=staffDailyRate(s);
+  const earned=Math.round(rate*payDays);
+  const advs=ST.advances.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d.getFullYear()===year&&d.getMonth()===month;});
+  const advTotal=advs.reduce((t,a)=>t+a.amount,0);
+  const net=earned-advTotal;
+  const line=(t,v,bold)=>`<div style="display:flex;justify-content:space-between;padding:3px 0;${bold?'font-weight:700;font-size:15px':''}"><span>${t}</span><span>${v}</span></div>`;
+  const advRows=advs.length?advs.map(a=>`<tr><td style="padding:2px 0">${new Date(a.date).toLocaleDateString('en-IN')}</td><td>${a.note||'Advance'}</td><td style="text-align:right">₹${fmt(a.amount)}</td></tr>`).join(''):'<tr><td colspan="3" style="color:#888;padding:4px 0">No advances this month</td></tr>';
+  const html=`
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:18px;font-weight:700">${ST.settings.name}</div>
+      <div style="font-size:13px">Salary Slip — ${monthName}</div>
+    </div>
+    <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:6px 0;margin-bottom:8px;font-size:13px">
+      ${line('Employee',s.name)}
+      ${line('Role',s.role||'-')}
+      ${line('Pay Type',s.wage_type==='DAILY'?('Daily @ ₹'+fmt(s.daily_rate)):('Monthly ₹'+fmt(s.monthly_salary)))}
+    </div>
+    <div style="font-size:13px">
+      ${line('Present days',P)}
+      ${line('Half days',H)}
+      ${line('Absent days',A)}
+      ${line('Payable days',payDays)}
+    </div>
+    <div style="border-top:1px dashed #ccc;margin-top:8px;padding-top:8px;font-size:13px">
+      ${line('Salary earned','₹'+fmt(earned))}
+      ${line('Less: Advances taken','− ₹'+fmt(advTotal))}
+    </div>
+    <div style="margin-top:6px;font-size:12px">
+      <b>Advance details:</b>
+      <table style="width:100%;border-collapse:collapse;margin-top:4px">${advRows}</table>
+    </div>
+    <div style="border-top:2px solid #333;margin-top:10px;padding-top:8px">
+      ${line('NET PAYABLE','₹'+fmt(net),true)}
+    </div>
+    <div style="margin-top:30px;display:flex;justify-content:space-between;font-size:12px;color:#555">
+      <span>Employee Sign</span><span>Authorised Sign</span>
+    </div>`;
+  document.getElementById('receipt-content').innerHTML=html;
+  document.getElementById('receipt-overlay').classList.add('show');
+  history.pushState({receiptOpen:true},'','');
+  setTimeout(()=>window.print(),300);
+}
 // Cycle a day's status: none -> P -> A -> H -> none
 async function cycleAttendance(staffId,dateStr){
   const dayKey=new Date(dateStr).toDateString();
@@ -2257,6 +2311,7 @@ function renderStaff(){
           <span style="margin-left:auto">Earned ₹${fmt(earned)}${advMonth?' − Adv ₹'+fmt(advMonth):''}</span>
         </div>
         <div style="font-size:10px;color:#aaa;margin-top:4px">Tap a day to cycle: none → P → A → H</div>
+        <button onclick="printSalarySlip(${s.id})" class="btn btn-primary btn-sm" style="width:100%;margin-top:8px">🖨️ Salary Slip PDF</button>
       </div>`;
     }).join('');
   }
