@@ -690,7 +690,8 @@ async function saveSettings(){
   ST.settings.name=document.getElementById('s-name').value||ST.settings.name;
   ST.settings.address=document.getElementById('s-addr').value||ST.settings.address;
   ST.settings.phone=document.getElementById('s-phone').value||ST.settings.phone;
-  ST.settings.gst=+(document.getElementById('s-gst').value)||ST.settings.gst;
+  const gstVal=document.getElementById('s-gst').value;
+  ST.settings.gst=gstVal===''?ST.settings.gst:Math.max(0,+gstVal);
   ST.settings.gstin=document.getElementById('s-gstin').value;
   await dbPut('settings',{key:'main',value:ST.settings});
   showToast('Settings saved');
@@ -864,7 +865,7 @@ function addToCart(id){
   updateCartSummary();
   renderCartItems();
   renderPOS();
-  if(!ST.cartOpen){toggleCart();}
+  // Do not auto-open full cart — only the small checkout bar shows.
 }
 
 function removeFromCart(id){
@@ -928,7 +929,7 @@ function updateCartSummary(){
   document.getElementById('cart-summary').innerHTML=`
     <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal</span><span>₹${fmt(sub)}</span></div>
     ${disc>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#43a047"><span>Discount</span><span>−₹${fmt(disc)}</span></div>`:''}
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#888;font-size:13px"><span>GST (${ST.settings.gst}%)</span><span>₹${fmt(gstAmt)}</span></div>
+    ${ST.settings.gst>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#888;font-size:13px"><span>GST (${ST.settings.gst}%)</span><span>₹${fmt(gstAmt)}</span></div>`:''}
     <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:#e65100"><span>Total</span><span>₹${fmt(total)}</span></div>
   `;
 }
@@ -1050,7 +1051,7 @@ function buildReceiptInner(s){
     <div style="border-top:1px dashed #ccc;margin-top:8px;padding-top:8px">
       ${line('Subtotal','₹'+fmt(s.subtotal))}
       ${s.discount>0?line('Discount','-₹'+fmt(s.discount)):''}
-      ${line(`GST (${ST.settings.gst}%)`,'₹'+fmt(s.gst_amount))}
+      ${s.gst_amount>0?line(`GST (${ST.settings.gst}%)`,'₹'+fmt(s.gst_amount)):''}
       <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;margin-top:4px">${line('TOTAL','₹'+fmt(s.total))}</div>
     </div>
     <div style="text-align:center;margin-top:16px;font-size:11px;color:#888">Thank you for your visit!</div>
