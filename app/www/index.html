@@ -145,6 +145,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
   <div class="topbar"><h1>🧁 JN Bakery POS</h1><button onclick="showPage('settings')">⚙️</button></div>
   <div id="low-stock-banner"></div>
   <div class="stats-grid" id="dash-stats"></div>
+  <div class="card" id="dash-accounts"></div>
   <div class="card" id="dash-chart-section">
     <h3>Today's Sales</h3>
     <div id="dash-today-list" style="margin-top:8px"></div>
@@ -170,18 +171,30 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     <button onclick="showPage('dash')">🏠</button>
   </div>
   <div id="pos-low-stock" style="display:none;background:#fff3cd;border-left:4px solid #fb8c00;padding:8px 14px;font-size:12px;color:#7b4a00"></div>
+  <div id="open-tables-bar" style="display:none;padding:8px 12px;gap:8px;overflow-x:auto;white-space:nowrap;background:#eef4ff;border-bottom:1px solid #d7e3ff"></div>
   <div class="cat-scroll" id="cat-bar"></div>
   <div id="pos-search"><input type="text" placeholder="Search products…" oninput="ST.search=this.value;renderPOS()" id="pos-search-inp"></div>
   <div class="product-grid" id="product-grid"></div>
   <div id="cart-toggle" onclick="toggleCart()" style="display:none">🛒 <span id="cart-count">0</span> items · ₹<span id="cart-total-mini">0</span> — Tap to checkout</div>
   <div id="cart-panel">
     <div style="padding:12px 16px;background:#fff8f5;border-bottom:1px solid #ffe0d0;display:flex;align-items:center">
-      <h3 style="flex:1">Cart</h3>
+      <h3 style="flex:1" id="cart-title">Cart</h3>
       <button onclick="clearCart()" class="btn btn-danger btn-sm">Clear</button>
     </div>
     <div id="cart-items"></div>
     <div id="cart-summary"></div>
     <div id="checkout-area">
+      <div class="form-group">
+        <label>Order Type</label>
+        <div class="pay-modes" id="order-type-modes">
+          <button class="pay-mode-btn active" onclick="setOrderType('TAKEAWAY',this)">🥡 Takeaway</button>
+          <button class="pay-mode-btn" onclick="setOrderType('DINEIN',this)">🍽️ Dine-in</button>
+        </div>
+      </div>
+      <div class="form-group" id="table-group" style="display:none">
+        <label>Table Number</label>
+        <input type="text" id="table-inp" placeholder="e.g. T1" value="" oninput="ST.tableNo=this.value">
+      </div>
       <div class="form-group">
         <label>Customer (optional)</label>
         <div style="display:flex;gap:8px">
@@ -204,7 +217,14 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
           <button class="pay-mode-btn" onclick="setPayMode('CREDIT',this)">📒 Credit</button>
         </div>
       </div>
-      <button class="btn btn-primary" onclick="confirmSale()">✅ Confirm Sale</button>
+      <div class="form-group" id="deposit-account-group">
+        <label>Deposit to Account</label>
+        <select id="sale-account" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" onchange="ST.accountId=+this.value"></select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" id="hold-table-btn" style="flex:1" onclick="holdOrder()">🍽️ Save Table</button>
+        <button class="btn btn-primary" style="flex:1.5" onclick="confirmSale()">✅ Confirm Sale</button>
+      </div>
     </div>
   </div>
 </div>
@@ -237,6 +257,12 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
   </div>
   <div id="tab-purchases" style="display:none">
     <div class="section-header"><h2>Stock Inward</h2><button onclick="openPurchaseModal()">+ Add</button></div>
+    <div style="padding:6px 12px;display:flex;gap:8px">
+      <input type="date" id="pur-from" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+      <input type="date" id="pur-to" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+      <button onclick="renderPurchaseTabs()" style="padding:8px 14px;background:#e65100;color:#fff;border:none;border-radius:8px;font-size:13px">Filter</button>
+    </div>
+    <div id="pur-summary-bar" style="padding:0 12px 6px;font-size:13px;color:#555"></div>
     <div id="purchase-list"></div>
   </div>
   <div id="tab-payables" style="display:none">
@@ -256,8 +282,18 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('products')"><div style="font-size:32px">🧁</div><div style="font-size:14px;font-weight:600;margin-top:8px">Products</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('customers')"><div style="font-size:32px">👥</div><div style="font-size:14px;font-weight:600;margin-top:8px">Customers</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('receivables')"><div style="font-size:32px">💰</div><div style="font-size:14px;font-weight:600;margin-top:8px">Receivables</div></button>
+    <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('accounts')"><div style="font-size:32px">🏦</div><div style="font-size:14px;font-weight:600;margin-top:8px">Cash & Bank</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('settings')"><div style="font-size:32px">⚙️</div><div style="font-size:14px;font-weight:600;margin-top:8px">Settings</div></button>
   </div>
+</div>
+
+<!-- ACCOUNTS PAGE -->
+<div id="page-accounts" class="page">
+  <div class="topbar"><h1>🏦 Cash & Bank</h1><button onclick="showPage('more')">← Back</button></div>
+  <div class="section-header"><h2>Accounts</h2><button onclick="openAccountModal()">+ Add</button></div>
+  <div id="accounts-list"></div>
+  <div class="section-header"><h2 style="font-size:15px;color:#888">Recent Transactions</h2></div>
+  <div id="account-txn-list"></div>
 </div>
 
 <!-- RAW MATERIALS PAGE -->
@@ -453,6 +489,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
       </div>
     </div>
     <input type="hidden" id="pur-is-paid" value="1">
+    <div class="form-group" id="pur-account-group"><label>Pay from Account</label><select id="pur-account" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
     <div class="form-group"><label>Notes</label><input id="pur-notes" type="text" placeholder="Invoice no, etc."></div>
     <button class="btn btn-primary" onclick="savePurchase()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-purchase')">Cancel</button>
@@ -466,6 +503,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     <div id="pay-supplier-info" style="margin-bottom:12px;font-size:14px;color:#555"></div>
     <input type="hidden" id="pay-sup-id">
     <div class="form-group"><label>Amount (₹)</label><input id="pay-sup-amount" type="number" min="1" step="0.01"></div>
+    <div class="form-group"><label>Pay from Account</label><select id="pay-sup-account" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
     <div class="form-group"><label>Note</label><input id="pay-sup-note" type="text" placeholder="e.g. Cash payment"></div>
     <button class="btn btn-primary" onclick="confirmPaySupplier()">Pay</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-pay-supplier')">Cancel</button>
@@ -516,9 +554,32 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     <h2>Give Advance</h2>
     <div class="form-group"><label>Staff</label><select id="adv-staff" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
     <div class="form-group"><label>Amount (₹)</label><input id="adv-amount" type="number" min="1"></div>
+    <div class="form-group"><label>Pay from Account</label><select id="adv-account" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"></select></div>
     <div class="form-group"><label>Note</label><input id="adv-note" type="text" placeholder="Reason/note"></div>
     <button class="btn btn-primary" onclick="saveAdvance()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-advance')">Cancel</button>
+  </div>
+</div>
+
+<!-- Account Modal -->
+<div class="modal-bg" id="modal-account">
+  <div class="modal">
+    <h2 id="account-modal-title">Add Account</h2>
+    <input type="hidden" id="acc-id">
+    <div class="form-group"><label>Account Name</label><input id="acc-name" type="text" placeholder="e.g. HDFC Bank, Paytm"></div>
+    <div class="form-group"><label>Type</label><select id="acc-type" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI / Wallet</option></select></div>
+    <div class="form-group"><label>Opening Balance (₹)</label><input id="acc-opening" type="number" step="0.01" value="0"></div>
+    <button class="btn btn-primary" onclick="saveAccount()">Save</button>
+    <button class="btn btn-secondary" onclick="closeModal('modal-account')">Cancel</button>
+  </div>
+</div>
+
+<!-- Account Ledger Modal -->
+<div class="modal-bg" id="modal-ledger">
+  <div class="modal">
+    <h2 id="ledger-title">Ledger</h2>
+    <div id="ledger-body"></div>
+    <button class="btn btn-secondary" onclick="closeModal('modal-ledger')">Close</button>
   </div>
 </div>
 
@@ -540,6 +601,12 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
       <div class="form-group"><label>Stock Qty</label><input id="prod-stock" type="number" min="0"></div>
     </div>
     <div class="form-group"><label>Barcode</label><input id="prod-barcode" type="text"></div>
+    <div class="form-group">
+      <label>Photo (optional)</label>
+      <input id="prod-image-file" type="file" accept="image/*" onchange="handleProductImage(this)">
+      <input type="hidden" id="prod-image">
+      <div id="prod-image-preview" style="margin-top:8px"></div>
+    </div>
     <button class="btn btn-primary" onclick="saveProduct()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-product')">Cancel</button>
   </div>
@@ -572,7 +639,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
 <div id="toast"></div>
 <script>
 // ==================== DB ====================
-const DB_NAME='JNBakeryDB', DB_VER=3;
+const DB_NAME='JNBakeryDB', DB_VER=4;
 let db;
 
 function openDB(){
@@ -598,6 +665,10 @@ function openDB(){
       if(!d.objectStoreNames.contains('purchases')) d.createObjectStore('purchases',{keyPath:'id',autoIncrement:true});
       if(!d.objectStoreNames.contains('supplier_payments')) d.createObjectStore('supplier_payments',{keyPath:'id',autoIncrement:true});
       if(!d.objectStoreNames.contains('receivables')) d.createObjectStore('receivables',{keyPath:'id',autoIncrement:true});
+      // New v4 stores
+      if(!d.objectStoreNames.contains('accounts')) d.createObjectStore('accounts',{keyPath:'id',autoIncrement:true});
+      if(!d.objectStoreNames.contains('account_txns')) d.createObjectStore('account_txns',{keyPath:'id',autoIncrement:true});
+      if(!d.objectStoreNames.contains('open_orders')) d.createObjectStore('open_orders',{keyPath:'id',autoIncrement:true});
     };
     req.onsuccess=e=>{db=e.target.result;res(db)};
     req.onerror=e=>rej(e);
@@ -644,8 +715,10 @@ let ST={
   staff:[],attendance:[],advances:[],
   suppliers:[],purchases:[],supplierPayments:[],
   receivables:[],
+  accounts:[],accountTxns:[],openOrders:[],
   cart:[],customer:null,discount:0,
-  payMode:'CASH',
+  payMode:'CASH',accountId:null,
+  orderType:'TAKEAWAY',tableNo:'',editingOrderId:null,
   catFilter:'all',search:'',
   cartOpen:false,lastSale:null,
   settings:{name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
@@ -658,6 +731,8 @@ async function init(){
   // Seed if empty
   if(ST.products.length===0) await seedData();
   await loadAll();
+  await ensureDefaultAccount();
+  ST.accountId=getDefaultAccountId();
   loadSettings();
   renderAll();
   showPage('dash');
@@ -669,13 +744,44 @@ async function loadAll(){
   [ST.products,ST.categories,ST.customers,ST.sales,
    ST.rawMaterials,ST.recipes,ST.productionLogs,
    ST.staff,ST.attendance,ST.advances,
-   ST.suppliers,ST.purchases,ST.supplierPayments,ST.receivables]=
+   ST.suppliers,ST.purchases,ST.supplierPayments,ST.receivables,
+   ST.accounts,ST.accountTxns,ST.openOrders]=
   await Promise.all([
     dbGetAll('products'),dbGetAll('categories'),dbGetAll('customers'),dbGetAll('sales'),
     dbGetAll('raw_materials'),dbGetAll('recipes'),dbGetAll('production_logs'),
     dbGetAll('staff'),dbGetAll('attendance'),dbGetAll('advances'),
-    dbGetAll('suppliers'),dbGetAll('purchases'),dbGetAll('supplier_payments'),dbGetAll('receivables')
+    dbGetAll('suppliers'),dbGetAll('purchases'),dbGetAll('supplier_payments'),dbGetAll('receivables'),
+    dbGetAll('accounts'),dbGetAll('account_txns'),dbGetAll('open_orders')
   ]);
+}
+
+// Ensure at least a Cash account exists (runs after any load)
+async function ensureDefaultAccount(){
+  if(ST.accounts.length===0){
+    await dbAdd('accounts',{name:'Cash',type:'CASH',opening_balance:0});
+    ST.accounts=await dbGetAll('accounts');
+  }
+}
+
+// Account balance = opening + all posted txns
+function getAccountBalance(accId){
+  const acc=ST.accounts.find(a=>a.id===accId);
+  if(!acc) return 0;
+  const txnSum=ST.accountTxns.filter(t=>t.account_id===accId).reduce((s,t)=>s+t.amount,0);
+  return (acc.opening_balance||0)+txnSum;
+}
+function getDefaultAccountId(){
+  const cash=ST.accounts.find(a=>a.type==='CASH');
+  return cash?cash.id:(ST.accounts[0]?ST.accounts[0].id:null);
+}
+// Post a ledger entry. amount>0 = money in, amount<0 = money out.
+async function postAccountTxn(accId,amount,type,ref,note){
+  if(!accId||!amount) return;
+  await dbAdd('account_txns',{
+    account_id:accId,amount,type,ref:ref||'',note:note||'',
+    date:new Date().toISOString(),
+    date_str:new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+  });
 }
 
 async function loadSettings(){
@@ -748,6 +854,8 @@ function renderAll(){
   renderCustomers();
   renderReceivables();
   renderProductsList();
+  renderAccounts();
+  renderOpenTables();
   populateSettingsForm();
   checkLowStock();
 }
@@ -756,7 +864,7 @@ function renderAll(){
 const PAGE_NAV_MAP={
   dash:'nav-dash',pos:'nav-pos',production:'nav-production',purchase:'nav-purchase',more:'nav-more',
   rawmat:'nav-more',recipes:'nav-more',staff:'nav-more',sales:'nav-more',
-  products:'nav-more',customers:'nav-more',receivables:'nav-more',settings:'nav-more'
+  products:'nav-more',customers:'nav-more',receivables:'nav-more',accounts:'nav-more',settings:'nav-more'
 };
 
 function showPage(name){
@@ -775,6 +883,7 @@ function showPage(name){
   if(name==='rawmat') renderRawMat();
   if(name==='recipes') renderRecipes();
   if(name==='staff') renderStaff();
+  if(name==='accounts') renderAccounts();
   if(name==='customers') renderCustomers();
   if(name==='products') renderProductsList();
 }
@@ -815,6 +924,15 @@ function renderDash(){
   document.getElementById('dash-stats').innerHTML=stats.map(s=>`
     <div class="stat-card"><div class="val">${s.val}</div><div class="lbl">${s.lbl}</div></div>
   `).join('');
+  // Cash & Bank balances
+  const acctEl=document.getElementById('dash-accounts');
+  if(acctEl){
+    if(ST.accounts.length===0){acctEl.innerHTML='';}
+    else acctEl.innerHTML='<h3>Cash & Bank</h3>'+ST.accounts.map(a=>{
+      const bal=getAccountBalance(a.id);
+      return`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0"><span>${a.name}</span><span style="font-weight:700;color:${bal<0?'#f44336':'#43a047'}">₹${fmt(bal)}</span></div>`;
+    }).join('');
+  }
   // Today's items
   const el=document.getElementById('dash-today-list');
   if(todaySales.length===0){el.innerHTML='<div class="empty-state"><div>No sales today yet</div></div>';return;}
@@ -841,7 +959,9 @@ function renderPOS(){
   document.getElementById('product-grid').innerHTML=prods.map(p=>{
     const inCart=ST.cart.find(i=>i.id===p.id);
     const stockLow=p.stock_qty<=2;
+    const img=p.image?`<div style="width:100%;height:90px;border-radius:8px;background:#f0f0f0 center/cover no-repeat url('${p.image}');margin-bottom:6px"></div>`:'';
     return`<div class="prod-card${inCart?' in-cart':''}" onclick="addToCart(${p.id})">
+      ${img}
       <div class="pname">${p.name}</div>
       <div class="pprice">₹${fmt(p.price)}</div>
       <div class="pstock${stockLow?' low':(p.stock_qty===0?' low':'')}">Stock: ${p.stock_qty}${inCart?' · In cart ✓':''}</div>
@@ -849,6 +969,8 @@ function renderPOS(){
   }).join('');
   updateCartSummary();
   populateCustomerSelect();
+  populateAccountSelect('sale-account',ST.accountId);
+  renderOpenTables();
 }
 
 function addToCart(id){
@@ -886,9 +1008,14 @@ function changeQty(id,delta){
 
 function clearCart(){
   ST.cart=[];ST.discount=0;ST.customer=null;ST.payMode='CASH';
-  document.getElementById('discount-inp').value=0;
-  document.getElementById('cust-select').value='';
-  document.querySelectorAll('.pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  ST.orderType='TAKEAWAY';ST.tableNo='';ST.editingOrderId=null;
+  const di=document.getElementById('discount-inp');if(di)di.value=0;
+  const cs=document.getElementById('cust-select');if(cs)cs.value='';
+  const ti=document.getElementById('table-inp');if(ti)ti.value='';
+  document.querySelectorAll('#pay-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('#order-type-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  const tg=document.getElementById('table-group');if(tg)tg.style.display='none';
+  const dg=document.getElementById('deposit-account-group');if(dg)dg.style.display='block';
   if(ST.cartOpen) toggleCart();
   updateCartSummary();renderCartItems();renderPOS();
 }
@@ -936,8 +1063,27 @@ function updateCartSummary(){
 
 function setPayMode(mode,btn){
   ST.payMode=mode;
-  document.querySelectorAll('.pay-mode-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#pay-modes .pay-mode-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // Hide deposit account for credit sales (no money received now)
+  const grp=document.getElementById('deposit-account-group');
+  if(grp) grp.style.display=(mode==='CREDIT')?'none':'block';
+}
+
+function setOrderType(type,btn){
+  ST.orderType=type;
+  document.querySelectorAll('#order-type-modes .pay-mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const tg=document.getElementById('table-group');
+  if(tg) tg.style.display=(type==='DINEIN')?'block':'none';
+}
+
+function populateAccountSelect(selId,selectedId){
+  const sel=document.getElementById(selId);
+  if(!sel) return;
+  sel.innerHTML=ST.accounts.map(a=>`<option value="${a.id}">${a.name} (₹${fmt(getAccountBalance(a.id))})</option>`).join('');
+  const want=selectedId||ST.accountId||getDefaultAccountId();
+  if(want) sel.value=want;
 }
 
 function populateCustomerSelect(){
@@ -962,6 +1108,7 @@ async function confirmSale(){
   const total=taxable+gstAmt;
   const now=new Date();
   const invNo='INV-'+now.getFullYear()+'-'+String(ST.sales.length+1).padStart(4,'0');
+  const saleAccId=ST.payMode==='CREDIT'?null:(+((document.getElementById('sale-account')||{}).value)||ST.accountId||getDefaultAccountId());
   const sale={
     invoice_no:invNo,
     items:ST.cart.map(i=>({...i})),
@@ -969,6 +1116,9 @@ async function confirmSale(){
     customer_id:ST.customer?ST.customer.id:null,
     customer_name:ST.customer?ST.customer.name:'Walk-in',
     pay_mode:ST.payMode,
+    order_type:ST.orderType,
+    table_no:ST.orderType==='DINEIN'?(ST.tableNo||''):'',
+    account_id:saleAccId,
     date:now.toISOString(),
     date_str:now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
   };
@@ -996,14 +1146,82 @@ async function confirmSale(){
       amount:total,date:now.toISOString(),date_str:sale.date_str,
       settled:false,settled_date:null
     });
+  }else{
+    // Cash/Card/UPI: money received into chosen account
+    await postAccountTxn(saleAccId,total,'SALE',invNo,`${sale.pay_mode} sale`);
+  }
+  // If this was settling an open table, remove that open order
+  if(ST.editingOrderId){
+    await dbDelete('open_orders',ST.editingOrderId);
+    ST.editingOrderId=null;
   }
   ST.lastSale={...sale,id:saleId};
-  const cartSnapshot=ST.cart.slice();
   clearCart();
   await loadAll();
   renderAll();
   showToast('Sale recorded ✓');
   doPrint({...sale,id:saleId});
+}
+
+// ==================== DINE-IN / TABLES ====================
+async function holdOrder(){
+  if(ST.cart.length===0){showToast('Cart is empty','e');return;}
+  const tableNo=ST.orderType==='DINEIN'?(ST.tableNo||'').trim():'';
+  if(ST.orderType==='DINEIN'&&!tableNo){showToast('Enter a table number','e');return;}
+  const order={
+    table_no:tableNo||'—',
+    order_type:ST.orderType,
+    items:ST.cart.map(i=>({...i})),
+    customer_id:ST.customer?ST.customer.id:null,
+    customer_name:ST.customer?ST.customer.name:'Walk-in',
+    discount:ST.discount,
+    created_at:new Date().toISOString(),
+    created_str:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+  };
+  if(ST.editingOrderId){
+    order.id=ST.editingOrderId;
+    await dbPut('open_orders',order);
+  }else{
+    await dbAdd('open_orders',order);
+  }
+  ST.editingOrderId=null;
+  clearCart();
+  await loadAll();
+  renderPOS();renderOpenTables();
+  showToast('Table saved — resume anytime');
+}
+
+function renderOpenTables(){
+  const bar=document.getElementById('open-tables-bar');
+  if(!bar) return;
+  if(ST.openOrders.length===0){bar.style.display='none';bar.innerHTML='';return;}
+  bar.style.display='flex';
+  bar.innerHTML=ST.openOrders.map(o=>{
+    const tot=o.items.reduce((s,i)=>s+i.price*i.qty,0);
+    return`<button onclick="resumeOrder(${o.id})" style="flex:0 0 auto;background:#fff;border:1px solid #4b7bec;color:#2b5fd6;border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer">
+      🍽️ ${o.table_no} · ₹${fmt(tot)} <span style="color:#888">(${o.items.length})</span></button>`;
+  }).join('');
+}
+
+function resumeOrder(id){
+  const o=ST.openOrders.find(x=>x.id===id);
+  if(!o){showToast('Order not found','e');return;}
+  ST.cart=o.items.map(i=>({...i}));
+  ST.customer=o.customer_id?ST.customers.find(c=>c.id===o.customer_id)||null:null;
+  ST.discount=o.discount||0;
+  ST.orderType=o.order_type||'DINEIN';
+  ST.tableNo=o.table_no==='—'?'':o.table_no;
+  ST.editingOrderId=id;
+  // reflect in UI
+  const di=document.getElementById('discount-inp');if(di)di.value=ST.discount;
+  const ti=document.getElementById('table-inp');if(ti)ti.value=ST.tableNo;
+  populateCustomerSelect();
+  const cs=document.getElementById('cust-select');if(cs)cs.value=ST.customer?ST.customer.id:'';
+  document.querySelectorAll('#order-type-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',(ST.orderType==='DINEIN')===(i===1)));
+  document.getElementById('table-group').style.display=ST.orderType==='DINEIN'?'block':'none';
+  updateCartSummary();renderCartItems();renderPOS();
+  if(!ST.cartOpen) toggleCart();
+  showToast('Table resumed');
 }
 
 // ==================== RECEIPT ====================
@@ -1042,6 +1260,7 @@ function buildReceiptInner(s){
         <span>${s.invoice_no}</span><span>${s.date_str}</span>
       </div>
       <div style="font-size:12px;color:#555">Customer: ${s.customer_name}</div>
+      ${s.order_type==='DINEIN'?`<div style="font-size:12px;color:#555">Dine-in · Table ${s.table_no||'—'}</div>`:`<div style="font-size:12px;color:#555">Takeaway</div>`}
       <div style="font-size:12px;color:#555">Mode: ${s.pay_mode}</div>
     </div>
     <table style="width:100%;font-size:12px;border-collapse:collapse">
@@ -1321,6 +1540,7 @@ function openPurchaseModal(){
   document.getElementById('pur-notes').value='';
   document.getElementById('pur-is-paid').value=1;
   setPurPaid(true,document.getElementById('pur-paid-btn'));
+  populateAccountSelect('pur-account');
   fillPurchaseUnit();
   openModal('modal-purchase');
 }
@@ -1340,6 +1560,9 @@ function setPurPaid(paid,btn){
   document.getElementById('pur-is-paid').value=paid?1:0;
   document.querySelectorAll('#modal-purchase .pay-mode-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // Account only relevant when paying now
+  const g=document.getElementById('pur-account-group');
+  if(g) g.style.display=paid?'block':'none';
 }
 async function savePurchase(){
   const supId=+document.getElementById('pur-supplier').value;
@@ -1351,20 +1574,23 @@ async function savePurchase(){
   const rm=ST.rawMaterials.find(r=>r.id===rmId);
   const total=+(qty*rate).toFixed(2);
   const paid=document.getElementById('pur-is-paid').value==='1';
+  const accId=paid?(+document.getElementById('pur-account').value||getDefaultAccountId()):null;
   const now=new Date();
   // Add stock + record purchase atomically
   const tx=db.transaction(['raw_materials','purchases'],'readwrite');
   rm.stock_qty+=qty;
   tx.objectStore('raw_materials').put(rm);
-  tx.objectStore('purchases').add({
+  const addReq=tx.objectStore('purchases').add({
     supplier_id:supId,supplier_name:sup.name,
     raw_material_id:rmId,raw_material_name:rm.name,
-    qty,unit:rm.unit,rate,total,paid,
+    qty,unit:rm.unit,rate,total,paid,account_id:accId,
     notes:document.getElementById('pur-notes').value,
     date:now.toISOString(),
     date_str:now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
   });
   await new Promise((r,j)=>{tx.oncomplete=r;tx.onerror=j;});
+  // If paid now, money goes out of the account
+  if(paid&&total>0) await postAccountTxn(accId,-total,'PURCHASE',sup.name,`${rm.name} ${qty}${rm.unit}`);
   closeModal('modal-purchase');
   await loadAll();renderAll();
   showToast('Stock inward recorded');
@@ -1377,6 +1603,7 @@ function openPaySupplierModal(supId){
   document.getElementById('pay-supplier-info').innerHTML=`<b>${sup.name}</b><br>Outstanding: <span class="text-red">₹${fmt(bal)}</span>`;
   document.getElementById('pay-sup-amount').value=bal;
   document.getElementById('pay-sup-note').value='';
+  populateAccountSelect('pay-sup-account');
   openModal('modal-pay-supplier');
 }
 async function confirmPaySupplier(){
@@ -1384,13 +1611,15 @@ async function confirmPaySupplier(){
   const amount=+document.getElementById('pay-sup-amount').value;
   if(amount<=0){showToast('Invalid amount','e');return;}
   const sup=ST.suppliers.find(s=>s.id===supId);
+  const accId=+document.getElementById('pay-sup-account').value||getDefaultAccountId();
   await dbAdd('supplier_payments',{
-    supplier_id:supId,supplier_name:sup.name,
+    supplier_id:supId,supplier_name:sup.name,account_id:accId,
     amount,note:document.getElementById('pay-sup-note').value,
     date:new Date().toISOString()
   });
+  await postAccountTxn(accId,-amount,'SUPPLIER_PAY',sup.name,'Supplier payment');
   closeModal('modal-pay-supplier');
-  await loadAll();renderPurchaseTabs();renderDash();
+  await loadAll();renderPurchaseTabs();renderDash();renderAccounts();
   showToast('Payment recorded');
 }
 
@@ -1419,10 +1648,17 @@ function renderPurchaseTabs(){
       </div>
     </div>`;
   }).join('');
-  // Purchases
+  // Purchases (with date filter)
   const plist=document.getElementById('purchase-list');
-  const purs=[...ST.purchases].reverse();
-  if(purs.length===0){plist.innerHTML='<div class="empty-state"><div class="icon">📦</div><div>No stock inward yet</div></div>';}
+  const pf=(document.getElementById('pur-from')||{}).value;
+  const pt=(document.getElementById('pur-to')||{}).value;
+  let purs=[...ST.purchases].reverse();
+  if(pf) purs=purs.filter(p=>new Date(p.date)>=new Date(pf));
+  if(pt) purs=purs.filter(p=>new Date(p.date)<=new Date(pt+'T23:59:59'));
+  const purTotal=purs.reduce((s,p)=>s+p.total,0);
+  const psb=document.getElementById('pur-summary-bar');
+  if(psb) psb.innerHTML=`<b>${purs.length}</b> entries · <b>₹${fmt(purTotal)}</b> total`;
+  if(purs.length===0){plist.innerHTML='<div class="empty-state"><div class="icon">📦</div><div>No stock inward in range</div></div>';}
   else plist.innerHTML=purs.map(p=>`
     <div class="list-item">
       <div style="font-size:28px">📦</div>
@@ -1531,6 +1767,7 @@ function openAdvanceModal(){
   document.getElementById('adv-staff').innerHTML=ST.staff.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   document.getElementById('adv-amount').value='';
   document.getElementById('adv-note').value='';
+  populateAccountSelect('adv-account');
   openModal('modal-advance');
 }
 async function saveAdvance(){
@@ -1538,14 +1775,91 @@ async function saveAdvance(){
   const amount=+document.getElementById('adv-amount').value;
   if(amount<=0){showToast('Invalid amount','e');return;}
   const stf=ST.staff.find(s=>s.id===sid);
+  const accId=+document.getElementById('adv-account').value||getDefaultAccountId();
   await dbAdd('advances',{
-    staff_id:sid,staff_name:stf.name,
+    staff_id:sid,staff_name:stf.name,account_id:accId,
     amount,note:document.getElementById('adv-note').value,
     date:new Date().toISOString()
   });
+  await postAccountTxn(accId,-amount,'ADVANCE',stf.name,'Staff advance');
   closeModal('modal-advance');
-  await loadAll();renderStaff();
+  await loadAll();renderStaff();renderAccounts();
   showToast('Advance recorded');
+}
+
+// ==================== ACCOUNTS ====================
+function openAccountModal(id){
+  const a=id?ST.accounts.find(x=>x.id===id):null;
+  document.getElementById('account-modal-title').textContent=a?'Edit Account':'Add Account';
+  document.getElementById('acc-id').value=a?a.id:'';
+  document.getElementById('acc-name').value=a?a.name:'';
+  document.getElementById('acc-type').value=a?a.type:'BANK';
+  document.getElementById('acc-opening').value=a?a.opening_balance:0;
+  openModal('modal-account');
+}
+async function saveAccount(){
+  const id=+document.getElementById('acc-id').value||null;
+  const name=document.getElementById('acc-name').value.trim();
+  if(!name){showToast('Enter account name','e');return;}
+  const obj={name,type:document.getElementById('acc-type').value,
+    opening_balance:+document.getElementById('acc-opening').value||0};
+  if(id) await dbPut('accounts',{...obj,id});
+  else await dbAdd('accounts',obj);
+  closeModal('modal-account');
+  await loadAll();renderAccounts();
+  showToast('Account saved');
+}
+function renderAccounts(){
+  const list=document.getElementById('accounts-list');
+  if(!list) return;
+  if(ST.accounts.length===0){list.innerHTML='<div class="empty-state"><div class="icon">🏦</div><div>No accounts</div></div>';}
+  else{
+    const icon={CASH:'💵',BANK:'🏦',UPI:'📱'};
+    list.innerHTML=ST.accounts.map(a=>{
+      const bal=getAccountBalance(a.id);
+      return`<div class="list-item">
+        <div style="font-size:28px">${icon[a.type]||'🏦'}</div>
+        <div class="info"><h4>${a.name}</h4><p>${a.type}</p></div>
+        <div class="right">
+          <div class="amt${bal<0?' text-red':''}">₹${fmt(bal)}</div>
+          <button onclick="openLedger(${a.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Ledger</button>
+          <button onclick="openAccountModal(${a.id})" class="btn btn-secondary btn-sm" style="margin-top:4px">Edit</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  // Recent transactions (all accounts)
+  const tl=document.getElementById('account-txn-list');
+  if(tl){
+    const txns=[...ST.accountTxns].reverse().slice(0,30);
+    if(txns.length===0){tl.innerHTML='<div class="empty-state"><div>No transactions yet</div></div>';}
+    else tl.innerHTML=txns.map(t=>{
+      const acc=ST.accounts.find(a=>a.id===t.account_id);
+      const inc=t.amount>=0;
+      return`<div class="list-item">
+        <div style="font-size:24px">${inc?'⬇️':'⬆️'}</div>
+        <div class="info"><h4>${t.type} ${t.ref?'· '+t.ref:''}</h4><p>${acc?acc.name:'?'} · ${t.date_str}${t.note?' · '+t.note:''}</p></div>
+        <div class="right"><div class="amt ${inc?'text-green':'text-red'}">${inc?'+':''}₹${fmt(t.amount)}</div></div>
+      </div>`;
+    }).join('');
+  }
+}
+function openLedger(accId){
+  const acc=ST.accounts.find(a=>a.id===accId);
+  if(!acc) return;
+  document.getElementById('ledger-title').textContent=acc.name+' — ₹'+fmt(getAccountBalance(accId));
+  const txns=ST.accountTxns.filter(t=>t.account_id===accId).reverse();
+  const body=document.getElementById('ledger-body');
+  const openingRow=`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;color:#888"><span>Opening balance</span><span>₹${fmt(acc.opening_balance||0)}</span></div>`;
+  if(txns.length===0){body.innerHTML=openingRow+'<div class="empty-state"><div>No transactions</div></div>';}
+  else body.innerHTML=openingRow+txns.map(t=>{
+    const inc=t.amount>=0;
+    return`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5">
+      <div><div style="font-size:13px;font-weight:600">${t.type} ${t.ref?'· '+t.ref:''}</div><div style="font-size:11px;color:#888">${t.date_str}</div></div>
+      <div class="${inc?'text-green':'text-red'}" style="font-weight:700">${inc?'+':''}₹${fmt(t.amount)}</div>
+    </div>`;
+  }).join('');
+  openModal('modal-ledger');
 }
 function showStaffTab(tab,btn){
   ['staff-list-tab','attendance-tab','advances-tab'].forEach(t=>{
@@ -1639,7 +1953,31 @@ function openProductModal(id){
   document.getElementById('prod-price').value=p?p.price:0;
   document.getElementById('prod-stock').value=p?p.stock_qty:0;
   document.getElementById('prod-barcode').value=p?p.barcode||'':'';
+  document.getElementById('prod-image').value=p&&p.image?p.image:'';
+  document.getElementById('prod-image-file').value='';
+  document.getElementById('prod-image-preview').innerHTML=(p&&p.image)?`<img src="${p.image}" style="width:64px;height:64px;object-fit:cover;border-radius:8px">`:'';
   openModal('modal-product');
+}
+function handleProductImage(input){
+  const file=input.files&&input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      // Downscale to max 300px, store as JPEG data URI to keep DB small
+      const max=300;let{width,height}=img;
+      if(width>height){if(width>max){height*=max/width;width=max;}}
+      else{if(height>max){width*=max/height;height=max;}}
+      const c=document.createElement('canvas');c.width=width;c.height=height;
+      c.getContext('2d').drawImage(img,0,0,width,height);
+      const data=c.toDataURL('image/jpeg',0.7);
+      document.getElementById('prod-image').value=data;
+      document.getElementById('prod-image-preview').innerHTML=`<img src="${data}" style="width:64px;height:64px;object-fit:cover;border-radius:8px">`;
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 async function saveProduct(){
   const id=+document.getElementById('prod-id').value||null;
@@ -1648,7 +1986,8 @@ async function saveProduct(){
   const obj={name,category:document.getElementById('prod-cat').value,
     price:+document.getElementById('prod-price').value,
     stock_qty:+document.getElementById('prod-stock').value,
-    barcode:document.getElementById('prod-barcode').value};
+    barcode:document.getElementById('prod-barcode').value,
+    image:document.getElementById('prod-image').value||''};
   if(id) await dbPut('products',{...obj,id});
   else await dbAdd('products',obj);
   closeModal('modal-product');
@@ -1661,7 +2000,7 @@ function renderProductsList(){
   if(ST.products.length===0){list.innerHTML='<div class="empty-state"><div class="icon">🧁</div><div>No products</div></div>';return;}
   list.innerHTML=ST.products.map(p=>`
     <div class="list-item">
-      <div style="font-size:28px">🧁</div>
+      ${p.image?`<img src="${p.image}" style="width:44px;height:44px;object-fit:cover;border-radius:8px">`:'<div style="font-size:28px">🧁</div>'}
       <div class="info"><h4>${p.name}</h4><p>${p.category} · Stock: ${p.stock_qty}</p></div>
       <div class="right">
         <div class="amt">₹${fmt(p.price)}</div>
