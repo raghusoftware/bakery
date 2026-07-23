@@ -339,7 +339,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     </div>
     <div class="section-header"><h2 style="font-size:15px">Mark Attendance</h2></div>
     <div id="attendance-list"></div>
-    <div class="section-header"><h2 style="font-size:15px;color:#888">This Month Summary</h2></div>
+    <div class="section-header"><h2 style="font-size:15px;color:#888">Payroll — whom to pay</h2></div>
     <div id="attendance-summary"></div>
   </div>
   <div id="advances-tab" style="display:none">
@@ -598,6 +598,14 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
     <div class="form-group"><label>Opening Balance (₹)</label><input id="acc-opening" type="number" step="0.01" value="0"></div>
     <button class="btn btn-primary" onclick="saveAccount()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-account')">Cancel</button>
+  </div>
+</div>
+
+<!-- Staff Detail Modal -->
+<div class="modal-bg" id="modal-staff-detail">
+  <div class="modal">
+    <h2 id="staff-detail-title">Staff</h2>
+    <div id="staff-detail-body"></div>
   </div>
 </div>
 
@@ -1974,6 +1982,85 @@ function staffDailyRate(s){
   if(s.wage_type==='DAILY') return s.daily_rate||0;
   return s.monthly_salary?s.monthly_salary/30:0;
 }
+// Compute a staff's payroll for the month containing `sel` (a Date)
+function staffPayroll(staffId,sel){
+  const s=ST.staff.find(x=>x.id===staffId)||{};
+  const year=sel.getFullYear(), month=sel.getMonth();
+  const recs=ST.attendance.filter(a=>{const d=new Date(a.date);return a.staff_id===staffId&&d.getFullYear()===year&&d.getMonth()===month;});
+  const P=recs.filter(a=>a.status==='P').length;
+  const A=recs.filter(a=>a.status==='A').length;
+  const H=recs.filter(a=>a.status==='H').length;
+  const payDays=P+H*0.5;
+  const earned=Math.round(staffDailyRate(s)*payDays);
+  const advs=ST.advances.filter(a=>{const d=new Date(a.date);return a.staff_id===staffId&&d.getFullYear()===year&&d.getMonth()===month;});
+  const advTotal=advs.reduce((t,a)=>t+a.amount,0);
+  return{s,year,month,P,A,H,payDays,earned,advs,advTotal,net:earned-advTotal};
+}
+// Per-staff detail view (calendar + advances + slip) in a modal
+let detailStaffId=null;
+function openStaffDetail(id){
+  detailStaffId=id;
+  const s=ST.staff.find(x=>x.id===id);
+  document.getElementById('staff-detail-title').textContent=s?('👤 '+s.name):'Staff';
+  renderStaffDetail();
+  openModal('modal-staff-detail');
+}
+function renderStaffDetail(){
+  if(!detailStaffId) return;
+  const s=ST.staff.find(x=>x.id===detailStaffId);
+  const body=document.getElementById('staff-detail-body');
+  if(!s||!body) return;
+  const sel=new Date(getAttDate());
+  const pr=staffPayroll(detailStaffId,sel);
+  const {year,month}=pr;
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const monthName=sel.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const map={};
+  ST.attendance.forEach(a=>{const d=new Date(a.date);if(a.staff_id===s.id&&d.getFullYear()===year&&d.getMonth()===month) map[d.getDate()]=a.status;});
+  let cells='';
+  for(let day=1;day<=daysInMonth;day++){
+    const st=map[day];
+    const bg=st==='P'?'#43a047':st==='A'?'#f44336':st==='H'?'#fb8c00':'#f0f0f0';
+    const col=st?'#fff':'#999';
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    cells+=`<div onclick="cycleAttendance(${s.id},'${dateStr}')" style="width:13.5%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;background:${bg};color:${col};font-size:11px;font-weight:600;cursor:pointer">${day}</div>`;
+  }
+  const advRows=pr.advs.length?pr.advs.map(a=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span>${new Date(a.date).toLocaleDateString('en-IN')} ${a.note?'· '+a.note:''}</span><span class="text-amber">₹${fmt(a.amount)}</span></div>`).join(''):'<div style="font-size:12px;color:#888">No advances this month</div>';
+  body.innerHTML=`
+    <div style="display:flex;align-items:center;margin-bottom:8px">
+      <div style="flex:1">
+        <div style="font-size:12px;color:#888">${s.role||''} · ${s.wage_type==='DAILY'?'Daily ₹'+fmt(s.daily_rate):'Monthly ₹'+fmt(s.monthly_salary)}</div>
+      </div>
+      <button onclick="openAddStaffModal(${s.id})" class="btn btn-secondary btn-sm">Edit</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <button onclick="shiftAttMonth(-1)" class="btn btn-secondary btn-sm">◀</button>
+      <div style="flex:1;text-align:center;font-weight:700">${monthName}</div>
+      <button onclick="shiftAttMonth(1)" class="btn btn-secondary btn-sm">▶</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:2.5%;row-gap:4px">${cells}</div>
+    <div style="font-size:10px;color:#aaa;margin:6px 0">Tap a day to cycle: none → P → A → H</div>
+    <div style="display:flex;gap:8px;margin:8px 0">
+      <span class="chip chip-green">Present ${pr.P}</span>
+      <span class="chip chip-amber">Half ${pr.H}</span>
+      <span class="chip chip-red">Absent ${pr.A}</span>
+    </div>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Salary earned (${pr.payDays} days)</span><span>₹${fmt(pr.earned)}</span></div>
+    <div style="font-weight:600;margin-top:6px">Advances this month</div>
+    ${advRows}
+    <div style="display:flex;justify-content:space-between;padding:3px 0;color:#f44336"><span>Total advances</span><span>− ₹${fmt(pr.advTotal)}</span></div>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:#e65100"><span>Net Payable</span><span>₹${fmt(pr.net)}</span></div>
+    <button onclick="printSalarySlip(${s.id})" class="btn btn-primary" style="margin-top:10px">🖨️ Salary Slip PDF</button>
+    <button onclick="openAdvanceFor(${s.id})" class="btn btn-secondary">💵 Give Advance</button>
+    <button onclick="closeModal('modal-staff-detail')" class="btn btn-secondary">Close</button>`;
+}
+function openAdvanceFor(id){
+  closeModal('modal-staff-detail');
+  openAdvanceModal();
+  const sel=document.getElementById('adv-staff');if(sel)sel.value=id;
+}
 function getAttDate(){
   const el=document.getElementById('att-date');
   const v=el&&el.value?el.value:new Date().toISOString().slice(0,10);
@@ -1989,6 +2076,7 @@ function shiftAttMonth(n){
   nd.setDate(day);
   if(el) el.value=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-${String(nd.getDate()).padStart(2,'0')}`;
   renderStaff();
+  if(document.getElementById('modal-staff-detail').classList.contains('open')) renderStaffDetail();
 }
 // Generate a printable monthly salary slip (attendance + advances + net payable)
 function printSalarySlip(staffId){
@@ -2057,6 +2145,7 @@ async function cycleAttendance(staffId,dateStr){
     await dbAdd('attendance',{staff_id:staffId,date:new Date(dateStr).toISOString(),status:next,check_in:new Date().toTimeString().slice(0,5)});
   }
   await loadAll();renderStaff();
+  if(document.getElementById('modal-staff-detail').classList.contains('open')) renderStaffDetail();
 }
 async function markAttendance(staffId,status){
   const dateStr=getAttDate();
@@ -2265,55 +2354,34 @@ function renderStaff(){
       </div>`;
     }).join('');
   }
-  // Monthly attendance cards (calendar) for the selected date's month
+  // Payroll list — one tap shows everyone: whom to pay and how much
   const attSum=document.getElementById('attendance-summary');
   if(attSum){
     const sel=new Date(getAttDate());
-    const year=sel.getFullYear(), month=sel.getMonth();
-    const ym=year+'-'+month;
     const monthName=sel.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
-    const daysInMonth=new Date(year,month+1,0).getDate();
     const monthHeader=`<div style="display:flex;align-items:center;gap:10px;padding:0 12px 8px">
       <button onclick="shiftAttMonth(-1)" class="btn btn-secondary btn-sm">◀</button>
       <div style="flex:1;text-align:center;font-weight:700">${monthName}</div>
       <button onclick="shiftAttMonth(1)" class="btn btn-secondary btn-sm">▶</button>
     </div>`;
-    if(ST.staff.length===0){attSum.innerHTML='';}
-    else attSum.innerHTML=monthHeader+ST.staff.map(s=>{
-      // Build status map for this staff/month
-      const map={};
-      ST.attendance.forEach(a=>{const d=new Date(a.date);if(a.staff_id===s.id&&d.getFullYear()===year&&d.getMonth()===month) map[d.getDate()]=a.status;});
-      let P=0,A=0,H=0;
-      let cells='';
-      for(let day=1;day<=daysInMonth;day++){
-        const st=map[day];
-        if(st==='P')P++;else if(st==='A')A++;else if(st==='H')H++;
-        const bg=st==='P'?'#43a047':st==='A'?'#f44336':st==='H'?'#fb8c00':'#f0f0f0';
-        const col=st?'#fff':'#999';
-        const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        cells+=`<div onclick="cycleAttendance(${s.id},'${dateStr}')" style="width:13.5%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;background:${bg};color:${col};font-size:11px;font-weight:600;cursor:pointer">${day}</div>`;
-      }
-      const payDays=P+H*0.5;
-      const earned=Math.round(staffDailyRate(s)*payDays);
-      const advMonth=ST.advances.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d.getFullYear()===year&&d.getMonth()===month;}).reduce((t,a)=>t+a.amount,0);
-      const net=earned-advMonth;
-      return`<div class="card">
-        <div style="display:flex;align-items:center;margin-bottom:8px">
-          <div style="flex:1"><h3 style="color:#222">${s.name}</h3>
-            <div style="font-size:11px;color:#888">${s.wage_type==='DAILY'?'Daily ₹'+fmt(s.daily_rate):'Monthly ₹'+fmt(s.monthly_salary)}</div></div>
-          <div style="text-align:right"><div class="amt${net<0?' text-red':''}" style="font-size:18px;font-weight:700">₹${fmt(net)}</div><div style="font-size:11px;color:#888">Net payable</div></div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:2.5%;row-gap:4px">${cells}</div>
-        <div style="margin-top:8px;font-size:12px;color:#666;display:flex;gap:10px;flex-wrap:wrap">
-          <span><span class="chip chip-green">P ${P}</span></span>
-          <span><span class="chip chip-red">A ${A}</span></span>
-          <span><span class="chip chip-amber">H ${H}</span></span>
-          <span style="margin-left:auto">Earned ₹${fmt(earned)}${advMonth?' − Adv ₹'+fmt(advMonth):''}</span>
-        </div>
-        <div style="font-size:10px;color:#aaa;margin-top:4px">Tap a day to cycle: none → P → A → H</div>
-        <button onclick="printSalarySlip(${s.id})" class="btn btn-primary btn-sm" style="width:100%;margin-top:8px">🖨️ Salary Slip PDF</button>
-      </div>`;
-    }).join('');
+    if(ST.staff.length===0){attSum.innerHTML=monthHeader+'<div class="empty-state"><div>No staff</div></div>';}
+    else{
+      const totalPay=ST.staff.reduce((t,s)=>t+staffPayroll(s.id,sel).net,0);
+      const totalCard=`<div class="card" style="background:#fff3ee;margin:0 12px 8px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">Total to pay (${monthName})</span><span class="big" style="font-size:22px">₹${fmt(totalPay)}</span></div></div>`;
+      attSum.innerHTML=monthHeader+totalCard+ST.staff.map(s=>{
+        const pr=staffPayroll(s.id,sel);
+        return`<div class="list-item" onclick="openStaffDetail(${s.id})" style="cursor:pointer">
+          <div style="font-size:28px">👤</div>
+          <div class="info"><h4>${s.name}</h4>
+            <p><span class="chip chip-green">P ${pr.P}</span> <span class="chip chip-amber">H ${pr.H}</span> <span class="chip chip-red">A ${pr.A}</span></p>
+            <p style="font-size:11px;color:#888">Earned ₹${fmt(pr.earned)}${pr.advTotal?' − Adv ₹'+fmt(pr.advTotal):''}</p></div>
+          <div class="right">
+            <div class="amt${pr.net<0?' text-red':''}" style="font-size:18px">₹${fmt(pr.net)}</div>
+            <div style="font-size:10px;color:#888">to pay ›</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
   }
   // Advances
   const advList=document.getElementById('advances-list');
