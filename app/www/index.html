@@ -135,6 +135,37 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
 .chip-green{background:#e8f5e9;color:#43a047}
 .chip-red{background:#ffebee;color:#f44336}
 .chip-amber{background:#fff8e1;color:#fb8c00}
+/* POS body wrapper (phone: normal scroll column) */
+#pos-body{flex:1;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
+#pos-main{display:flex;flex-direction:column}
+
+/* ===== TABLET / DESKTOP (Codepos two-panel) ===== */
+@media(min-width:840px){
+  /* Left icon rail instead of bottom bar */
+  #bottom-nav{flex-direction:column;width:76px;height:100%;top:0;bottom:0;right:auto;border-top:none;border-right:1px solid #e6e6e6;padding-top:12px;gap:4px;justify-content:flex-start;background:#1f5fe0}
+  .nav-btn{flex:0 0 auto;color:#cdddff;padding:14px 0;font-size:10px;border-radius:12px;margin:0 10px}
+  .nav-btn .icon{font-size:22px}
+  .nav-btn.active{color:#fff;background:rgba(255,255,255,.18)}
+  #app{padding-left:76px}
+  .page{padding-bottom:0}
+  .page.active{height:100%}
+  /* POS two-panel */
+  #page-pos.active #pos-body{flex-direction:row;overflow:hidden}
+  #pos-main{flex:1;overflow-y:auto;min-width:0;padding-bottom:16px}
+  #cart-panel{position:static!important;transform:none!important;max-height:none;height:100%;width:380px;flex:0 0 380px;border-top:none;border-left:1px solid #eee;border-radius:0;box-shadow:-2px 0 12px #0000000d;overflow-y:auto;padding-bottom:16px}
+  #cart-toggle,#cart-collapse-btn{display:none!important}
+  .product-grid{grid-template-columns:repeat(3,1fr);gap:14px}
+  .prod-card{border-radius:16px}
+  /* Center modals as dialogs */
+  .modal-bg{align-items:center;justify-content:center}
+  .modal{max-width:460px;border-radius:16px;max-height:88vh}
+  /* Wider content pages read better centered */
+  .stats-grid{grid-template-columns:repeat(4,1fr)}
+  #tables-grid{grid-template-columns:repeat(4,1fr)!important}
+}
+@media(min-width:1200px){
+  .product-grid{grid-template-columns:repeat(4,1fr)}
+}
 </style>
 </head>
 <body>
@@ -173,14 +204,17 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
   </div>
   <div id="pos-low-stock" style="display:none;background:#fff3cd;border-left:4px solid #fb8c00;padding:8px 14px;font-size:12px;color:#7b4a00"></div>
   <div id="open-tables-bar" style="display:none;padding:8px 12px;gap:8px;overflow-x:auto;white-space:nowrap;background:#eef4ff;border-bottom:1px solid #d7e3ff"></div>
-  <div class="cat-scroll" id="cat-bar"></div>
-  <div id="pos-search"><input type="text" placeholder="Search products…" oninput="ST.search=this.value;renderPOS()" id="pos-search-inp"></div>
-  <div class="product-grid" id="product-grid"></div>
+  <div id="pos-body">
+   <div id="pos-main">
+    <div class="cat-scroll" id="cat-bar"></div>
+    <div id="pos-search"><input type="text" placeholder="Search products…" oninput="ST.search=this.value;renderPOS()" id="pos-search-inp"></div>
+    <div class="product-grid" id="product-grid"></div>
+   </div>
   <div id="cart-toggle" onclick="toggleCart()" style="display:none"><span id="cart-toggle-label">🛒</span> <span id="cart-count">0</span> items · ₹<span id="cart-total-mini">0</span> — Tap to bill ▲</div>
   <div id="cart-panel">
     <div style="padding:12px 16px;background:#fff8f5;border-bottom:1px solid #ffe0d0;display:flex;align-items:center;gap:8px">
-      <button onclick="toggleCart()" style="border:none;background:#eee;border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer" title="Close">▼</button>
-      <h3 style="flex:1" id="cart-title">Cart</h3>
+      <button id="cart-collapse-btn" onclick="toggleCart()" style="border:none;background:#eee;border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer" title="Close">▼</button>
+      <h3 style="flex:1" id="cart-title">Order Details</h3>
       <button onclick="clearCart()" class="btn btn-danger btn-sm">Clear</button>
     </div>
     <div id="cart-items"></div>
@@ -228,6 +262,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
         <button class="btn btn-primary" style="flex:1.5" onclick="confirmSale()">✅ Confirm Sale</button>
       </div>
     </div>
+  </div>
   </div>
 </div>
 
@@ -1075,7 +1110,7 @@ function clearCart(){
   ST.cart=[];ST.discount=0;ST.customer=null;ST.payMode='CASH';
   ST.orderType='TAKEAWAY';ST.tableNo='';ST.editingOrderId=null;ST.activeTableId=null;
   const pt=document.getElementById('pos-title');if(pt)pt.textContent='🛒 POS';
-  const ct=document.getElementById('cart-title');if(ct)ct.textContent='Cart';
+  const ct=document.getElementById('cart-title');if(ct)ct.textContent='Order Details';
   const di=document.getElementById('discount-inp');if(di)di.value=0;
   const cs=document.getElementById('cust-select');if(cs)cs.value='';
   const ti=document.getElementById('table-inp');if(ti)ti.value='';
@@ -1327,7 +1362,7 @@ function syncCheckoutUI(){
   const otg=document.getElementById('order-type-group');if(otg)otg.style.display=activeTbl?'none':'block';
   const tg=document.getElementById('table-group');if(tg)tg.style.display=(!activeTbl&&ST.orderType==='DINEIN')?'block':'none';
   const pt=document.getElementById('pos-title');if(pt)pt.textContent=activeTbl?('🍽️ '+ST.tableNo):'🛒 POS';
-  const ct=document.getElementById('cart-title');if(ct)ct.textContent=activeTbl?('Order · '+ST.tableNo):'Cart';
+  const ct=document.getElementById('cart-title');if(ct)ct.textContent=activeTbl?('Order · '+ST.tableNo):'Order Details';
   const hb=document.getElementById('hold-table-btn');if(hb)hb.style.display=(ST.orderType==='DINEIN')?'block':'none';
 }
 
