@@ -66,7 +66,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
 .prod-card .pstock{font-size:11px;color:#888;margin-top:4px}
 .prod-card .pstock.low{color:#f44336}
 /* CART */
-#cart-panel{position:fixed;bottom:60px;left:0;right:0;background:#fff;border-top:2px solid #e65100;max-height:50vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s;z-index:90}
+#cart-panel{position:fixed;bottom:60px;left:0;right:0;background:#fff;border-top:2px solid #e65100;max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch;transform:translateY(100%);transition:transform .3s;z-index:90;padding-bottom:16px;border-radius:14px 14px 0 0;box-shadow:0 -4px 20px #0002}
 #cart-panel.open{transform:translateY(0)}
 #cart-toggle{position:fixed;bottom:60px;left:0;right:0;background:#e65100;color:#fff;padding:10px;text-align:center;font-weight:600;cursor:pointer;z-index:91;transition:bottom .0s}
 .cart-item{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #f0f0f0;gap:10px}
@@ -176,16 +176,17 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#222;height:100v
   <div class="cat-scroll" id="cat-bar"></div>
   <div id="pos-search"><input type="text" placeholder="Search products…" oninput="ST.search=this.value;renderPOS()" id="pos-search-inp"></div>
   <div class="product-grid" id="product-grid"></div>
-  <div id="cart-toggle" onclick="toggleCart()" style="display:none">🛒 <span id="cart-count">0</span> items · ₹<span id="cart-total-mini">0</span> — Tap to checkout</div>
+  <div id="cart-toggle" onclick="toggleCart()" style="display:none"><span id="cart-toggle-label">🛒</span> <span id="cart-count">0</span> items · ₹<span id="cart-total-mini">0</span> — Tap to bill ▲</div>
   <div id="cart-panel">
-    <div style="padding:12px 16px;background:#fff8f5;border-bottom:1px solid #ffe0d0;display:flex;align-items:center">
+    <div style="padding:12px 16px;background:#fff8f5;border-bottom:1px solid #ffe0d0;display:flex;align-items:center;gap:8px">
+      <button onclick="toggleCart()" style="border:none;background:#eee;border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer" title="Close">▼</button>
       <h3 style="flex:1" id="cart-title">Cart</h3>
       <button onclick="clearCart()" class="btn btn-danger btn-sm">Clear</button>
     </div>
     <div id="cart-items"></div>
     <div id="cart-summary"></div>
     <div id="checkout-area">
-      <div class="form-group">
+      <div class="form-group" id="order-type-group">
         <label>Order Type</label>
         <div class="pay-modes" id="order-type-modes">
           <button class="pay-mode-btn active" onclick="setOrderType('TAKEAWAY',this)">🥡 Takeaway</button>
@@ -1062,6 +1063,7 @@ function clearCart(){
   document.querySelectorAll('#pay-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
   document.querySelectorAll('#order-type-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
   const tg=document.getElementById('table-group');if(tg)tg.style.display='none';
+  const otg=document.getElementById('order-type-group');if(otg)otg.style.display='block';
   const dg=document.getElementById('deposit-account-group');if(dg)dg.style.display='block';
   const hb=document.getElementById('hold-table-btn');if(hb)hb.style.display='none';
   if(ST.cartOpen) toggleCart();
@@ -1071,6 +1073,9 @@ function clearCart(){
 function toggleCart(){
   ST.cartOpen=!ST.cartOpen;
   document.getElementById('cart-panel').classList.toggle('open',ST.cartOpen);
+  // Hide the floating bar while the sheet is open (they share the same spot)
+  const tog=document.getElementById('cart-toggle');
+  if(tog) tog.style.display=(ST.cartOpen||ST.cart.length===0)?'none':'block';
   renderCartItems();
 }
 
@@ -1099,8 +1104,10 @@ function updateCartSummary(){
   const total=taxable+gstAmt;
   document.getElementById('cart-count').textContent=ST.cart.reduce((s,i)=>s+i.qty,0);
   document.getElementById('cart-total-mini').textContent=fmt(total);
+  const lbl=document.getElementById('cart-toggle-label');
+  if(lbl) lbl.textContent=ST.activeTableId?('🍽️ '+ST.tableNo):'🛒';
   const tog=document.getElementById('cart-toggle');
-  tog.style.display=ST.cart.length?'block':'none';
+  tog.style.display=(ST.cart.length&&!ST.cartOpen)?'block':'none';
   document.getElementById('cart-summary').innerHTML=`
     <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal</span><span>₹${fmt(sub)}</span></div>
     ${disc>0?`<div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#43a047"><span>Discount</span><span>−₹${fmt(disc)}</span></div>`:''}
@@ -1284,7 +1291,10 @@ function openTableOrder(tableId){
   showPage('pos');
   syncCheckoutUI();
   updateCartSummary();renderCartItems();renderPOS();
-  if(!ST.cartOpen) toggleCart();
+  // Keep the product grid visible so items can be added; the checkout bar
+  // shows the running total. Close the sheet if it was left open.
+  if(ST.cartOpen) toggleCart();
+  showToast('Table '+t.name+' — add items, then tap the bar to bill');
 }
 // Reflect current order state into the checkout controls
 function syncCheckoutUI(){
@@ -1293,9 +1303,12 @@ function syncCheckoutUI(){
   populateCustomerSelect();
   const cs=document.getElementById('cust-select');if(cs)cs.value=ST.customer?ST.customer.id:'';
   document.querySelectorAll('#order-type-modes .pay-mode-btn').forEach((b,i)=>b.classList.toggle('active',(ST.orderType==='DINEIN')===(i===1)));
-  const tg=document.getElementById('table-group');if(tg)tg.style.display=ST.orderType==='DINEIN'?'block':'none';
-  const pt=document.getElementById('pos-title');if(pt)pt.textContent=ST.activeTableId?('🍽️ '+ST.tableNo):'🛒 POS';
-  const ct=document.getElementById('cart-title');if(ct)ct.textContent=ST.activeTableId?('Order · '+ST.tableNo):'Cart';
+  const activeTbl=!!ST.activeTableId;
+  // When a table is already open, its type/number are fixed — hide those fields to keep checkout small
+  const otg=document.getElementById('order-type-group');if(otg)otg.style.display=activeTbl?'none':'block';
+  const tg=document.getElementById('table-group');if(tg)tg.style.display=(!activeTbl&&ST.orderType==='DINEIN')?'block':'none';
+  const pt=document.getElementById('pos-title');if(pt)pt.textContent=activeTbl?('🍽️ '+ST.tableNo):'🛒 POS';
+  const ct=document.getElementById('cart-title');if(ct)ct.textContent=activeTbl?('Order · '+ST.tableNo):'Cart';
   const hb=document.getElementById('hold-table-btn');if(hb)hb.style.display=(ST.orderType==='DINEIN')?'block':'none';
 }
 
