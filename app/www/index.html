@@ -358,6 +358,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div id="page-more" class="page">
   <div class="topbar"><h1>More</h1></div>
   <div style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('inventory')"><div style="font-size:32px">📦</div><div style="font-size:14px;font-weight:600;margin-top:8px">Inventory</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('rawmat')"><div style="font-size:32px">🌾</div><div style="font-size:14px;font-weight:600;margin-top:8px">Raw Materials</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('recipes')"><div style="font-size:32px">📋</div><div style="font-size:14px;font-weight:600;margin-top:8px">Recipes / BOM</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('staff')"><div style="font-size:32px">👤</div><div style="font-size:14px;font-weight:600;margin-top:8px">Staff / HR</div></button>
@@ -376,6 +377,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   <div class="topbar"><h1>🍽️ Tables</h1><button onclick="showPage('pos')">POS →</button></div>
   <div class="section-header"><h2>Dine-in Tables</h2><button onclick="openAddTableModal()">+ Add Table</button></div>
   <div id="tables-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:12px"></div>
+</div>
+
+<!-- INVENTORY PAGE -->
+<div id="page-inventory" class="page">
+  <div class="topbar"><h1>📦 Inventory</h1><button onclick="showPage('more')">← Back</button></div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showInvTab('raw',this)">🌾 Raw Materials</button>
+    <button class="tab-btn" onclick="showInvTab('finished',this)">🧁 Products</button>
+  </div>
+  <div id="inv-raw-tab">
+    <div class="section-header"><h2 style="font-size:16px">Raw Material Stock</h2><button onclick="openRawmatModal()">+ Add</button></div>
+    <div id="inv-raw-list"></div>
+  </div>
+  <div id="inv-finished-tab" style="display:none">
+    <div class="section-header"><h2 style="font-size:16px">Product Stock</h2><button onclick="openProductModal()">+ Add</button></div>
+    <div id="inv-finished-list"></div>
+  </div>
 </div>
 
 <!-- ACCOUNTS PAGE -->
@@ -681,6 +699,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <div class="form-group"><label>Opening Balance (₹)</label><input id="acc-opening" type="number" step="0.01" value="0"></div>
     <button class="btn btn-primary" onclick="saveAccount()">Save</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-account')">Cancel</button>
+  </div>
+</div>
+
+<!-- Stock Adjust Modal -->
+<div class="modal-bg" id="modal-adjust">
+  <div class="modal">
+    <h2 id="adjust-title">Adjust Stock</h2>
+    <input type="hidden" id="adj-kind"><input type="hidden" id="adj-id">
+    <div id="adjust-info" style="margin-bottom:12px;font-size:14px;color:var(--ink-2)"></div>
+    <div class="form-group">
+      <label>Action</label>
+      <div class="pay-modes" id="adjust-modes">
+        <button type="button" class="pay-mode-btn active" onclick="setAdjMode('ADD',this)">➕ Add</button>
+        <button type="button" class="pay-mode-btn" onclick="setAdjMode('REMOVE',this)">➖ Remove</button>
+        <button type="button" class="pay-mode-btn" onclick="setAdjMode('SET',this)">✎ Set to</button>
+      </div>
+      <input type="hidden" id="adj-mode" value="ADD">
+    </div>
+    <div class="form-group"><label id="adj-qty-label">Quantity</label><input id="adj-qty" type="number" min="0" step="0.001" value="1"></div>
+    <div class="form-group"><label>Reason (optional)</label><input id="adj-note" type="text" placeholder="e.g. spoilage, count correction"></div>
+    <button class="btn btn-primary" onclick="saveAdjust()">Apply</button>
+    <button class="btn btn-secondary" onclick="closeModal('modal-adjust')">Cancel</button>
   </div>
 </div>
 
@@ -1011,6 +1051,7 @@ function renderAll(){
   renderAccounts();
   renderOpenTables();
   renderTables();
+  renderInventory();
   populateSettingsForm();
   checkLowStock();
 }
@@ -1019,7 +1060,7 @@ function renderAll(){
 const PAGE_NAV_MAP={
   dash:'nav-dash',pos:'nav-pos',production:'nav-production',purchase:'nav-purchase',more:'nav-more',
   rawmat:'nav-more',recipes:'nav-more',staff:'nav-more',sales:'nav-more',
-  products:'nav-more',customers:'nav-more',receivables:'nav-more',accounts:'nav-more',tables:'nav-pos',settings:'nav-more'
+  products:'nav-more',customers:'nav-more',receivables:'nav-more',accounts:'nav-more',tables:'nav-pos',inventory:'nav-more',settings:'nav-more'
 };
 
 function showPage(name){
@@ -1040,6 +1081,7 @@ function showPage(name){
   if(name==='staff') renderStaff();
   if(name==='accounts') renderAccounts();
   if(name==='tables') renderTables();
+  if(name==='inventory') renderInventory();
   if(name==='pos') syncCheckoutUI();
   if(name==='customers') renderCustomers();
   if(name==='products') renderProductsList();
@@ -1691,6 +1733,87 @@ function checkLowStock(){
     el.style.display='block';
     el.textContent='⚠️ Low stock: '+low.map(r=>r.name).join(', ');
   }else if(el){el.style.display='none';}
+}
+
+// ==================== INVENTORY ====================
+function showInvTab(tab,btn){
+  document.getElementById('inv-raw-tab').style.display=tab==='raw'?'block':'none';
+  document.getElementById('inv-finished-tab').style.display=tab==='finished'?'block':'none';
+  document.querySelectorAll('#page-inventory .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function renderInventory(){
+  // Raw materials
+  const rl=document.getElementById('inv-raw-list');
+  if(rl){
+    if(ST.rawMaterials.length===0){rl.innerHTML='<div class="empty-state"><div class="icon">🌾</div><div>No raw materials — tap “+ Add”, or record a Stock Inward under Buy.</div></div>';}
+    else rl.innerHTML=ST.rawMaterials.map(rm=>{
+      const low=rm.stock_qty<=rm.reorder_level;
+      return`<div class="list-item">
+        <div style="font-size:26px">🌾</div>
+        <div class="info"><h4>${rm.name} ${low?'<span class="chip chip-red">Low</span>':''}</h4><p>Reorder at ${fmt(rm.reorder_level)} ${rm.unit} · ₹${fmt(rm.cost_per_unit)}/${rm.unit}</p></div>
+        <div class="right"><div class="amt">${fmt(rm.stock_qty)} <span style="font-size:11px;color:var(--ink-3)">${rm.unit}</span></div>
+          <button onclick="openAdjust('raw',${rm.id})" class="btn btn-primary btn-sm" style="margin-top:4px">Adjust</button></div>
+      </div>`;
+    }).join('');
+  }
+  // Products
+  const fl=document.getElementById('inv-finished-list');
+  if(fl){
+    if(ST.products.length===0){fl.innerHTML='<div class="empty-state"><div class="icon">🧁</div><div>No products yet</div></div>';}
+    else fl.innerHTML=ST.products.map(p=>{
+      const low=p.stock_qty<=2;
+      return`<div class="list-item">
+        ${p.image?`<img src="${p.image}" style="width:40px;height:40px;object-fit:cover;border-radius:8px">`:'<div style="font-size:26px">🧁</div>'}
+        <div class="info"><h4>${p.name} ${low?'<span class="chip chip-amber">Low</span>':''}</h4><p>${p.category} · ₹${fmt(p.price)}</p></div>
+        <div class="right"><div class="amt">${fmt(p.stock_qty)} <span style="font-size:11px;color:var(--ink-3)">pcs</span></div>
+          <button onclick="openAdjust('finished',${p.id})" class="btn btn-primary btn-sm" style="margin-top:4px">Adjust</button></div>
+      </div>`;
+    }).join('');
+  }
+}
+let adjKind=null,adjId=null;
+function openAdjust(kind,id){
+  adjKind=kind;adjId=id;
+  const item=kind==='raw'?ST.rawMaterials.find(x=>x.id===id):ST.products.find(x=>x.id===id);
+  if(!item) return;
+  const unit=kind==='raw'?item.unit:'pcs';
+  document.getElementById('adjust-title').textContent='Adjust · '+item.name;
+  document.getElementById('adjust-info').innerHTML=`Current stock: <b>${fmt(item.stock_qty)} ${unit}</b>`;
+  document.getElementById('adj-qty').value=1;
+  document.getElementById('adj-note').value='';
+  setAdjMode('ADD',document.querySelectorAll('#adjust-modes .pay-mode-btn')[0]);
+  openModal('modal-adjust');
+}
+function setAdjMode(mode,btn){
+  document.getElementById('adj-mode').value=mode;
+  document.querySelectorAll('#adjust-modes .pay-mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('adj-qty-label').textContent=mode==='SET'?'Set stock to':'Quantity';
+}
+async function saveAdjust(){
+  const mode=document.getElementById('adj-mode').value;
+  const qty=+document.getElementById('adj-qty').value;
+  if(isNaN(qty)||qty<0){showToast('Enter a valid quantity','e');return;}
+  const store=adjKind==='raw'?'raw_materials':'products';
+  const item=adjKind==='raw'?ST.rawMaterials.find(x=>x.id===adjId):ST.products.find(x=>x.id===adjId);
+  if(!item) return;
+  let newStock=item.stock_qty;
+  if(mode==='ADD') newStock=item.stock_qty+qty;
+  else if(mode==='REMOVE') newStock=Math.max(0,item.stock_qty-qty);
+  else newStock=qty;
+  item.stock_qty=+newStock.toFixed(3);
+  await dbPut(store,item);
+  // trace product adjustments in the production log
+  if(adjKind==='finished'){
+    const delta=item.stock_qty; // record note only
+    await dbAdd('production_logs',{product_id:item.id,product_name:item.name,qty_produced:0,type:'ADJUST',
+      reason:`${mode} ${qty} → ${fmt(item.stock_qty)}${document.getElementById('adj-note').value?' · '+document.getElementById('adj-note').value:''}`,materials_used:[],
+      date:new Date().toISOString(),date_str:new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})});
+  }
+  closeModal('modal-adjust');
+  await loadAll();renderAll();renderInventory();
+  showToast('Stock updated');
 }
 
 // ==================== RECIPES ====================
