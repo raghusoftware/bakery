@@ -212,10 +212,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 @media(min-width:1200px){
   .product-grid{grid-template-columns:repeat(4,1fr)}
 }
+/* AUTH */
+#auth-overlay{display:none;position:fixed;inset:0;z-index:600;background:var(--bg);align-items:center;justify-content:center;padding:24px}
+#auth-overlay.show{display:flex}
+#auth-card{background:var(--card);border-radius:24px;box-shadow:var(--sh-2),var(--sh-3);padding:28px 22px;width:100%;max-width:380px;text-align:center}
+#auth-logo{font-size:52px;margin-bottom:4px}
+#auth-card h1{font-size:26px;font-weight:800;letter-spacing:-.03em;color:var(--brand)}
+#auth-card .auth-sub{color:var(--ink-2);font-size:14px;margin:2px 0 18px}
+#auth-card input{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;font-size:15px;background:var(--card);color:var(--ink);margin-bottom:10px;font-family:inherit}
+#auth-card input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+#auth-msg{font-size:13px;color:var(--brand-press);min-height:18px;margin-top:8px}
+.auth-note{font-size:11px;color:var(--ink-3);margin-top:14px;line-height:1.5}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="app" style="display:none">
 <!-- PAGES -->
 <!-- DASHBOARD -->
 <div id="page-dash" class="page active">
@@ -496,6 +507,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <div class="form-group"><label>GST %</label><input id="s-gst" type="number" min="0" max="28"></div>
     <div class="form-group"><label>GSTIN</label><input id="s-gstin" type="text"></div>
     <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+  </div>
+  <div class="card">
+    <h3>Account</h3>
+    <div id="account-email" style="font-size:14px;color:var(--ink-2);margin-bottom:8px"></div>
+    <button class="btn btn-secondary" onclick="doLogout()">🔒 Log out</button>
   </div>
   <div class="card">
     <h3>Data Management</h3>
@@ -821,77 +837,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 
 <!-- TOAST -->
 <div id="toast"></div>
+<script src="supabase.js"></script>
 <script>
-// ==================== DB ====================
-const DB_NAME='JNBakeryDB', DB_VER=5;
-let db;
+// ==================== SUPABASE DATA LAYER ====================
+const SUPA_URL='https://qqwpymcvliyghotlldfi.supabase.co';
+const SUPA_KEY='sb_publishable_wW0NutUznDMOXwMoXvHeTQ_T9oe8-KS';
+let sb=null, USER=null;
 
-function openDB(){
-  return new Promise((res,rej)=>{
-    const req=indexedDB.open(DB_NAME,DB_VER);
-    req.onupgradeneeded=e=>{
-      const d=e.target.result;
-      const prev=e.oldVersion;
-      // Stores from v1/v2
-      if(!d.objectStoreNames.contains('categories')) d.createObjectStore('categories',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('products')) d.createObjectStore('products',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('customers')) d.createObjectStore('customers',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('sales')) d.createObjectStore('sales',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('settings')) d.createObjectStore('settings',{keyPath:'key'});
-      // New v3 stores
-      if(!d.objectStoreNames.contains('raw_materials')) d.createObjectStore('raw_materials',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('recipes')) d.createObjectStore('recipes',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('production_logs')) d.createObjectStore('production_logs',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('staff')) d.createObjectStore('staff',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('attendance')) d.createObjectStore('attendance',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('advances')) d.createObjectStore('advances',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('suppliers')) d.createObjectStore('suppliers',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('purchases')) d.createObjectStore('purchases',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('supplier_payments')) d.createObjectStore('supplier_payments',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('receivables')) d.createObjectStore('receivables',{keyPath:'id',autoIncrement:true});
-      // New v4 stores
-      if(!d.objectStoreNames.contains('accounts')) d.createObjectStore('accounts',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('account_txns')) d.createObjectStore('account_txns',{keyPath:'id',autoIncrement:true});
-      if(!d.objectStoreNames.contains('open_orders')) d.createObjectStore('open_orders',{keyPath:'id',autoIncrement:true});
-      // New v5 store
-      if(!d.objectStoreNames.contains('tables')) d.createObjectStore('tables',{keyPath:'id',autoIncrement:true});
-    };
-    req.onsuccess=e=>{db=e.target.result;res(db)};
-    req.onerror=e=>rej(e);
-  });
+function initSb(){
+  if(!window.supabase){throw new Error('Supabase library not loaded — check internet connection');}
+  sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage}});
 }
-
-function dbGetAll(store){
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readonly');
-    const req=tx.objectStore(store).getAll();
-    req.onsuccess=()=>res(req.result);
-    req.onerror=e=>rej(e);
-  });
+async function dbGetAll(store){
+  const {data,error}=await sb.from(store).select('*').order('id',{ascending:true});
+  if(error){console.error('load '+store,error.message);return [];}
+  return data||[];
 }
-function dbAdd(store,obj){
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readwrite');
-    const req=tx.objectStore(store).add(obj);
-    req.onsuccess=()=>res(req.result);
-    req.onerror=e=>rej(e);
-  });
+async function dbAdd(store,obj){
+  const {data,error}=await sb.from(store).insert(obj).select('id').single();
+  if(error){showToast('Save failed: '+error.message,'e');throw error;}
+  return data.id;
 }
-function dbPut(store,obj){
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readwrite');
-    const req=tx.objectStore(store).put(obj);
-    req.onsuccess=()=>res(req.result);
-    req.onerror=e=>rej(e);
-  });
+async function dbPut(store,obj){
+  const {error}=await sb.from(store).upsert(obj);
+  if(error){showToast('Save failed: '+error.message,'e');throw error;}
+  return obj.id;
 }
-function dbDelete(store,id){
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readwrite');
-    const req=tx.objectStore(store).delete(id);
-    req.onsuccess=()=>res();
-    req.onerror=e=>rej(e);
-  });
+async function dbDelete(store,id){
+  const {error}=await sb.from(store).delete().eq('id',id);
+  if(error){showToast('Delete failed: '+error.message,'e');throw error;}
 }
 
 // ==================== STATE ====================
@@ -910,12 +884,14 @@ let ST={
   settings:{brand:'FastBill',name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
 };
 
-// ==================== INIT ====================
-async function init(){
-  await openDB();
+// ==================== INIT / AUTH ====================
+// Called once the user is authenticated
+async function startApp(){
+  document.getElementById('auth-overlay').classList.remove('show');
+  document.getElementById('app').style.display='flex';
   await loadAll();
-  // Seed if empty
-  if(ST.products.length===0) await seedData();
+  // Seed a starter catalogue for brand-new accounts
+  if(ST.products.length===0 && ST.rawMaterials.length===0) await seedData();
   await loadAll();
   await ensureDefaultAccount();
   ST.accountId=getDefaultAccountId();
@@ -924,6 +900,37 @@ async function init(){
   showPage('dash');
   setupBackButton();
   checkLowStock();
+}
+// Entry point: set up Supabase, then gate on a session
+async function init(){
+  try{ initSb(); }catch(e){ document.getElementById('auth-msg').textContent=e.message; document.getElementById('auth-overlay').classList.add('show'); return; }
+  const {data:{session}}=await sb.auth.getSession();
+  if(session&&session.user){ USER=session.user; document.getElementById('app').style.display='flex'; await startApp(); }
+  else{ document.getElementById('app').style.display='none'; document.getElementById('auth-overlay').classList.add('show'); }
+}
+async function doLogin(){
+  const email=document.getElementById('auth-email').value.trim();
+  const pw=document.getElementById('auth-pass').value;
+  if(!email||!pw){document.getElementById('auth-msg').textContent='Enter email and password';return;}
+  document.getElementById('auth-msg').textContent='Signing in…';
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
+  if(error){document.getElementById('auth-msg').textContent=error.message;return;}
+  USER=data.user; await startApp();
+}
+async function doSignup(){
+  const email=document.getElementById('auth-email').value.trim();
+  const pw=document.getElementById('auth-pass').value;
+  if(!email||pw.length<6){document.getElementById('auth-msg').textContent='Enter email and a password (6+ chars)';return;}
+  document.getElementById('auth-msg').textContent='Creating account…';
+  const {data,error}=await sb.auth.signUp({email,password:pw});
+  if(error){document.getElementById('auth-msg').textContent=error.message;return;}
+  if(data.session){USER=data.user; await startApp();}
+  else{document.getElementById('auth-msg').textContent='Account created. Check your email to confirm, then Log in.';}
+}
+async function doLogout(){
+  if(!confirm('Log out of FastBill?')) return;
+  await sb.auth.signOut();
+  location.reload();
 }
 
 async function loadAll(){
@@ -970,19 +977,14 @@ async function postAccountTxn(accId,amount,type,ref,note){
   });
 }
 
-function loadSettings(){
-  return new Promise(res=>{
-    try{
-      const tx=db.transaction('settings','readonly');
-      const req=tx.objectStore('settings').get('main');
-      req.onsuccess=()=>{
-        // Merge stored over defaults so gst:0 survives and missing keys keep defaults
-        if(req.result&&req.result.value) ST.settings={...ST.settings,...req.result.value};
-        res();
-      };
-      req.onerror=()=>res();
-    }catch(e){res();}
-  });
+async function loadSettings(){
+  const {data,error}=await sb.from('settings').select('*').maybeSingle();
+  if(!error&&data){
+    const {owner,updated_at,...rest}=data;
+    // keep defaults for any null columns
+    Object.keys(rest).forEach(k=>{if(rest[k]==null)delete rest[k];});
+    ST.settings={...ST.settings,...rest};
+  }
 }
 
 async function saveSettings(){
@@ -993,27 +995,27 @@ async function saveSettings(){
   const gstVal=document.getElementById('s-gst').value;
   ST.settings.gst=gstVal===''?ST.settings.gst:Math.max(0,+gstVal);
   ST.settings.gstin=document.getElementById('s-gstin').value;
-  await dbPut('settings',{key:'main',value:ST.settings});
+  const s=ST.settings;
+  const {error}=await sb.from('settings').upsert({owner:USER.id,brand:s.brand,name:s.name,address:s.address,phone:s.phone,gst:s.gst,gstin:s.gstin});
+  if(error){showToast('Save failed: '+error.message,'e');return;}
   showToast('Settings saved');
+  populateSettingsForm();
 }
 
 async function seedData(){
-  // Categories
   const cats=['Bread','Cake','Biscuit','Snack','Drink'];
   for(const c of cats) await dbAdd('categories',{name:c});
-  // Products
+  // Products — capture generated ids so recipes can reference them
   const prods=[
-    {id:1,name:'White Bread Loaf',category:'Bread',price:35,stock_qty:20,barcode:''},
-    {id:2,name:'Brown Bread',category:'Bread',price:45,stock_qty:15,barcode:''},
-    {id:3,name:'Butter Biscuit',category:'Biscuit',price:20,stock_qty:50,barcode:''},
-    {id:4,name:'Black Forest Cake',category:'Cake',price:350,stock_qty:5,barcode:''},
-    {id:5,name:'Puff Pastry',category:'Snack',price:15,stock_qty:30,barcode:''},
-    {id:6,name:'Cold Coffee',category:'Drink',price:60,stock_qty:10,barcode:''},
+    {name:'White Bread Loaf',category:'Bread',price:35,stock_qty:20,barcode:''},
+    {name:'Brown Bread',category:'Bread',price:45,stock_qty:15,barcode:''},
+    {name:'Butter Biscuit',category:'Biscuit',price:20,stock_qty:50,barcode:''},
+    {name:'Black Forest Cake',category:'Cake',price:350,stock_qty:5,barcode:''},
+    {name:'Puff Pastry',category:'Snack',price:15,stock_qty:30,barcode:''},
+    {name:'Cold Coffee',category:'Drink',price:60,stock_qty:10,barcode:''},
   ];
-  const tx=db.transaction('products','readwrite');
-  for(const p of prods) tx.objectStore('products').put(p);
-  await new Promise(r=>tx.oncomplete=r);
-  // Raw Materials
+  const pid={};
+  for(const p of prods) pid[p.name]=await dbAdd('products',p);
   const rms=[
     {name:'Maida',unit:'Kg',stock_qty:25,reorder_level:5,cost_per_unit:40},
     {name:'Sugar',unit:'Kg',stock_qty:15,reorder_level:3,cost_per_unit:45},
@@ -1022,18 +1024,18 @@ async function seedData(){
     {name:'Milk',unit:'L',stock_qty:10,reorder_level:2,cost_per_unit:55},
     {name:'Yeast',unit:'g',stock_qty:500,reorder_level:100,cost_per_unit:0.5},
   ];
-  const rmIds=[];
-  for(const r of rms) rmIds.push(await dbAdd('raw_materials',r));
-  // Recipes: White Bread (id:1)
-  await dbAdd('recipes',{product_id:1,raw_material_id:rmIds[0],qty_required:0.5});
-  await dbAdd('recipes',{product_id:1,raw_material_id:rmIds[5],qty_required:10});
-  await dbAdd('recipes',{product_id:1,raw_material_id:rmIds[2],qty_required:0.05});
-  // Recipes: Black Forest Cake (id:4)
-  await dbAdd('recipes',{product_id:4,raw_material_id:rmIds[0],qty_required:0.3});
-  await dbAdd('recipes',{product_id:4,raw_material_id:rmIds[1],qty_required:0.2});
-  await dbAdd('recipes',{product_id:4,raw_material_id:rmIds[2],qty_required:0.15});
-  await dbAdd('recipes',{product_id:4,raw_material_id:rmIds[3],qty_required:4});
-  await dbAdd('recipes',{product_id:4,raw_material_id:rmIds[4],qty_required:0.2});
+  const rmId=[];
+  for(const r of rms) rmId.push(await dbAdd('raw_materials',r));
+  // White Bread recipe
+  await dbAdd('recipes',{product_id:pid['White Bread Loaf'],raw_material_id:rmId[0],qty_required:0.5});
+  await dbAdd('recipes',{product_id:pid['White Bread Loaf'],raw_material_id:rmId[5],qty_required:10});
+  await dbAdd('recipes',{product_id:pid['White Bread Loaf'],raw_material_id:rmId[2],qty_required:0.05});
+  // Black Forest Cake recipe
+  await dbAdd('recipes',{product_id:pid['Black Forest Cake'],raw_material_id:rmId[0],qty_required:0.3});
+  await dbAdd('recipes',{product_id:pid['Black Forest Cake'],raw_material_id:rmId[1],qty_required:0.2});
+  await dbAdd('recipes',{product_id:pid['Black Forest Cake'],raw_material_id:rmId[2],qty_required:0.15});
+  await dbAdd('recipes',{product_id:pid['Black Forest Cake'],raw_material_id:rmId[3],qty_required:4});
+  await dbAdd('recipes',{product_id:pid['Black Forest Cake'],raw_material_id:rmId[4],qty_required:0.2});
 }
 
 // ==================== RENDER ALL ====================
@@ -1332,21 +1334,15 @@ async function confirmSale(){
     date:now.toISOString(),
     date_str:now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
   };
-  // Atomic: deduct stock + save sale
-  const tx=db.transaction(['sales','products'],'readwrite');
-  const salesStore=tx.objectStore('sales');
-  const prodStore=tx.objectStore('products');
-  // Deduct stock
+  // Deduct finished-goods stock, then save the sale
   for(const item of ST.cart){
     const prod=ST.products.find(p=>p.id===item.id);
     if(prod){
       prod.stock_qty=Math.max(0,prod.stock_qty-item.qty);
-      prodStore.put(prod);
+      await dbPut('products',prod);
     }
   }
-  const addReq=salesStore.add(sale);
-  await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=rej;});
-  const saleId=addReq.result;
+  const saleId=await dbAdd('sales',sale);
   // If credit, create receivable
   if(ST.payMode==='CREDIT'){
     await dbAdd('receivables',{
@@ -1606,30 +1602,24 @@ async function confirmProduce(){
       showToast(`Not enough ${rm.name}`,'e');return;
     }
   }
-  // Deduct raw materials + add product stock atomically
-  const stores=['raw_materials','products','production_logs'];
-  const tx=db.transaction(stores,'readwrite');
-  const rmStore=tx.objectStore('raw_materials');
-  const pStore=tx.objectStore('products');
-  const logStore=tx.objectStore('production_logs');
+  // Deduct raw materials, then add product stock + log the batch
   const materialsUsed=[];
   for(const l of lines){
     const rm=ST.rawMaterials.find(m=>m.id===l.raw_material_id);
     if(!rm) continue;
     const used=l.qty_required*qty;
     rm.stock_qty=Math.max(0,rm.stock_qty-used);
-    rmStore.put(rm);
+    await dbPut('raw_materials',rm);
     materialsUsed.push({rm_id:rm.id,rm_name:rm.name,qty_used:used,unit:rm.unit});
   }
   prod.stock_qty+=qty;
-  pStore.put(prod);
-  logStore.add({
+  await dbPut('products',prod);
+  await dbAdd('production_logs',{
     product_id:pid,product_name:prod.name,qty_produced:qty,
     type:'PRODUCE',materials_used:materialsUsed,
     date:new Date().toISOString(),
     date_str:new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
   });
-  await new Promise((r,j)=>{tx.oncomplete=r;tx.onerror=j;});
   closeModal('modal-produce');
   await loadAll();renderAll();
   showToast(`✓ Produced ${qty} × ${prod.name}`);
@@ -2066,11 +2056,10 @@ async function savePurchase(){
   const paid=document.getElementById('pur-is-paid').value==='1';
   const accId=paid?(+document.getElementById('pur-account').value||getDefaultAccountId()):null;
   const now=new Date();
-  // Add stock + record purchase atomically
-  const tx=db.transaction(['raw_materials','purchases'],'readwrite');
+  // Add raw-material stock, then record the purchase bill
   rm.stock_qty+=qty;
-  tx.objectStore('raw_materials').put(rm);
-  const addReq=tx.objectStore('purchases').add({
+  await dbPut('raw_materials',rm);
+  await dbAdd('purchases',{
     supplier_id:supId,supplier_name:sup.name,
     raw_material_id:rmId,raw_material_name:rm.name,
     qty,unit:rm.unit,rate,total,paid,account_id:accId,
@@ -2078,7 +2067,6 @@ async function savePurchase(){
     date:now.toISOString(),
     date_str:now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
   });
-  await new Promise((r,j)=>{tx.oncomplete=r;tx.onerror=j;});
   // If paid now, money goes out of the account
   if(paid&&total>0) await postAccountTxn(accId,-total,'PURCHASE',sup.name,`${rm.name} ${qty}${rm.unit}`);
   closeModal('modal-purchase');
@@ -2749,9 +2737,7 @@ function openSaleDetail(saleId){
 // Reverse a sale's side-effects (stock, receivable, account ledger)
 async function reverseSale(s){
   // restore product stock
-  const tx=db.transaction('products','readwrite');
-  for(const it of s.items){const p=ST.products.find(x=>x.id===it.id);if(p){p.stock_qty+=it.qty;tx.objectStore('products').put(p);}}
-  await new Promise(r=>tx.oncomplete=r);
+  for(const it of s.items){const p=ST.products.find(x=>x.id===it.id);if(p){p.stock_qty+=it.qty;await dbPut('products',p);}}
   // remove any receivable for this sale
   for(const r of ST.receivables.filter(r=>r.sale_id===s.id)) await dbDelete('receivables',r.id);
   // reverse account ledger entry (delete the SALE posting for this invoice)
@@ -2889,6 +2875,7 @@ function renderCustomers(){
 // ==================== SETTINGS ====================
 function populateSettingsForm(){
   const s=ST.settings;
+  const ae=document.getElementById('account-email');if(ae&&USER) ae.textContent='Signed in as '+USER.email;
   const brandTitle=document.getElementById('dash-brand');if(brandTitle) brandTitle.textContent='🧁 '+(s.brand||'FastBill');
   const bd=document.getElementById('s-brand');if(bd) bd.value=s.brand||'';
   const n=document.getElementById('s-name');if(n) n.value=s.name||'';
@@ -2906,9 +2893,12 @@ function exportData(){
   a.click();
 }
 async function resetDB(){
-  indexedDB.deleteDatabase(DB_NAME);
-  showToast('Database reset. Reloading…');
-  setTimeout(()=>location.reload(),1500);
+  showToast('Clearing cloud data…');
+  const stores=['sales','receivables','account_txns','open_orders','purchases','supplier_payments','recipes','production_logs','attendance','advances','products','raw_materials','suppliers','customers','staff','accounts','categories','tables'];
+  for(const s of stores){ await sb.from(s).delete().gte('id',0); }
+  await sb.from('settings').delete().eq('owner',USER.id);
+  showToast('All data reset. Reloading…');
+  setTimeout(()=>location.reload(),1200);
 }
 
 // ==================== BARCODE SCANNER ====================
@@ -2984,15 +2974,33 @@ document.querySelectorAll('.modal-bg').forEach(bg=>{
   if(to) to.value=today;
 })();
 
-// Capacitor / startup
-document.addEventListener('DOMContentLoaded',()=>{
+// Capacitor / startup (guard against double init)
+let _booted=false;
+function boot(){
+  if(_booted) return; _booted=true;
   if(window.Capacitor){
     window.Capacitor.Plugins.App&&window.Capacitor.Plugins.App.addListener('backButton',handleBack);
   }
   init();
-});
-if(document.readyState!=='loading') init();
+}
+document.addEventListener('DOMContentLoaded',boot);
+if(document.readyState!=='loading') boot();
 </script>
+</div>
+
+<!-- AUTH OVERLAY (sits outside #app so it shows before login) -->
+<div id="auth-overlay">
+  <div id="auth-card">
+    <div id="auth-logo">🧁</div>
+    <h1>FastBill</h1>
+    <p class="auth-sub">Sign in to your shop</p>
+    <input id="auth-email" type="email" inputmode="email" autocomplete="username" placeholder="Email">
+    <input id="auth-pass" type="password" autocomplete="current-password" placeholder="Password">
+    <button class="btn btn-primary" onclick="doLogin()">Log in</button>
+    <button class="btn btn-secondary" onclick="doSignup()">Create account</button>
+    <div id="auth-msg"></div>
+    <p class="auth-note">Your data is stored securely in the cloud and synced across devices. Internet required.</p>
+  </div>
 </div>
 </body>
 </html>
