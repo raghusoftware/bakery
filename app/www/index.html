@@ -212,6 +212,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 @media(min-width:1200px){
   .product-grid{grid-template-columns:repeat(4,1fr)}
 }
+/* ===== HOME (ronasit-style) ===== */
+#page-dash{background:var(--card)}
+#page-dash>*{flex:0 0 auto} /* prevent flex-column from squeezing sections */
+@media(prefers-color-scheme:dark){#page-dash{background:var(--bg)}}
+#home-head{display:flex;align-items:center;gap:12px;padding:14px 18px 6px}
+#home-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#f5b301,#ea580c);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;cursor:pointer;flex:0 0 auto}
+#home-hello{font-size:18px;font-weight:800;letter-spacing:-.02em}
+#home-date{font-size:13px;color:var(--ink-2);margin-top:1px}
+#home-search{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card);font-size:18px;cursor:pointer}
+#home-banner{position:relative;overflow:hidden;margin:12px 16px;border-radius:26px;padding:22px;background:linear-gradient(135deg,#c9b8ff,#a78bfa);color:#1c1c1e;cursor:pointer}
+#home-banner-title{font-size:26px;font-weight:800;line-height:1.05;letter-spacing:-.02em}
+#home-banner-amount{font-size:32px;font-weight:800;margin-top:10px;letter-spacing:-.03em}
+#home-banner-sub{font-size:13px;font-weight:600;margin-top:8px;opacity:.8}
+#home-banner-shapes{position:absolute;right:12px;top:16px;font-size:46px;line-height:1;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18));transform:rotate(8deg);opacity:.95;z-index:0}
+.home-h2{font-size:22px;font-weight:800;letter-spacing:-.02em;padding:8px 18px 6px}
+/* Week strip */
+#home-week{display:flex;gap:8px;padding:6px 16px 4px;overflow-x:auto;scrollbar-width:none}
+#home-week::-webkit-scrollbar{display:none}
+.day-pill{flex:0 0 auto;width:52px;padding:12px 0;border-radius:26px;border:1px solid var(--line);background:var(--card);text-align:center;cursor:pointer;transition:transform .12s}
+.day-pill:active{transform:scale(.94)}
+.day-pill .dow{font-size:12px;color:var(--ink-2);font-weight:600}
+.day-pill .dnum{font-size:16px;font-weight:800;margin-top:2px}
+.day-pill.sel{background:#1c1c1e;border-color:#1c1c1e}
+.day-pill.sel .dow,.day-pill.sel .dnum{color:#fff}
+.day-pill .dot{width:5px;height:5px;border-radius:50%;background:var(--brand);margin:3px auto 0}
+/* Overview colored cards */
+#home-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:4px 16px 8px}
+.hcard{border-radius:22px;padding:18px;min-height:104px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;color:#1c1c1e}
+.hcard .hc-tag{font-size:12px;font-weight:700;background:rgba(255,255,255,.55);align-self:flex-start;padding:3px 10px;border-radius:20px}
+.hcard .hc-val{font-size:26px;font-weight:800;letter-spacing:-.03em}
+.hcard .hc-lbl{font-size:13px;font-weight:600;opacity:.75}
+.hc-orange{background:#ffb454}.hc-blue{background:#a9d3ff}.hc-pink{background:#ffb1e6}.hc-green{background:#b9f0c9}
+/* Floating pill bottom nav */
+@media(max-width:839px){
+  #bottom-nav{left:14px;right:14px;bottom:calc(10px + var(--safe-b));height:64px;border-radius:32px;background:#1c1c1e;border:none;box-shadow:0 10px 30px rgba(0,0,0,.28);backdrop-filter:none;padding:0 8px;overflow:visible}
+  .nav-btn{color:#8e8e93;font-size:0;gap:0}
+  .nav-btn .icon{font-size:20px}
+  .nav-btn.active{color:#1c1c1e}
+  .nav-btn.active .icon{background:#fff;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+  .page{padding-bottom:calc(74px + var(--safe-b) + 12px)}
+  #cart-panel{bottom:calc(74px + var(--safe-b))}
+  #cart-toggle{bottom:calc(84px + var(--safe-b))}
+  #toast{bottom:calc(90px + var(--safe-b))}
+}
 /* AUTH */
 #auth-overlay{display:none;position:fixed;inset:0;z-index:600;background:var(--bg);align-items:center;justify-content:center;padding:24px}
 #auth-overlay.show{display:flex}
@@ -230,25 +274,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <!-- PAGES -->
 <!-- DASHBOARD -->
 <div id="page-dash" class="page active">
-  <div class="topbar"><h1 id="dash-brand">🧁 FastBill</h1><button onclick="showPage('settings')">⚙️</button></div>
+  <!-- Greeting header -->
+  <div id="home-head">
+    <div id="home-avatar" onclick="showPage('settings')"></div>
+    <div style="flex:1">
+      <div id="home-hello">Hello</div>
+      <div id="home-date">Today</div>
+    </div>
+    <button id="home-search" onclick="showPage('sales')" aria-label="Search">🔍</button>
+  </div>
   <div id="low-stock-banner"></div>
-  <div class="stats-grid" id="dash-stats"></div>
+  <!-- Feature banner -->
+  <div id="home-banner" onclick="showPage('pos')">
+    <div id="home-banner-shapes">🧁🍩🥐</div>
+    <div style="position:relative;z-index:1">
+      <div id="home-banner-title">Today's<br>sales</div>
+      <div id="home-banner-amount">₹0</div>
+      <div id="home-banner-sub">Tap to open POS · New sale ›</div>
+    </div>
+  </div>
+  <!-- Week date strip -->
+  <div id="home-week"></div>
+  <!-- Overview -->
+  <h2 class="home-h2" id="home-overview-title">Overview</h2>
+  <div id="home-cards"></div>
   <div class="card" id="dash-accounts"></div>
-  <div class="card" id="dash-chart-section">
-    <h3>Today's Sales</h3>
-    <div id="dash-today-list" style="margin-top:8px"></div>
-  </div>
-  <div class="card">
-    <h3>Quick Actions</h3>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <button class="btn btn-primary" style="flex:1" onclick="showPage('pos')">🛒 POS Sale</button>
-      <button class="btn btn-secondary" style="flex:1" onclick="showPage('production')">🏭 Produce</button>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <button class="btn btn-secondary" style="flex:1" onclick="showPage('purchase')">📦 Buy Stock</button>
-      <button class="btn btn-secondary" style="flex:1" onclick="showPage('tables')">🍽️ Tables</button>
-    </div>
-  </div>
+  <h2 class="home-h2">Recent sales</h2>
+  <div id="dash-today-list" style="padding:0 12px"></div>
+  <div style="height:8px"></div>
 </div>
 
 <!-- POS PAGE -->
@@ -1109,42 +1162,67 @@ function handleBack(){
 }
 
 // ==================== DASHBOARD ====================
+let dashDay=new Date(); // selected day on the home week-strip
 function renderDash(){
-  const today=new Date().toDateString();
-  const todaySales=ST.sales.filter(s=>new Date(s.date).toDateString()===today);
-  const todayRev=todaySales.reduce((s,x)=>s+x.total,0);
-  const todayOrders=todaySales.length;
+  const brand=(ST.settings&&ST.settings.brand)||'FastBill';
+  // Greeting header
+  const hello=document.getElementById('home-hello');if(hello) hello.textContent='Hello, '+brand;
+  const av=document.getElementById('home-avatar');if(av) av.textContent=brand.trim().charAt(0).toUpperCase()||'F';
+  const dstr=document.getElementById('home-date');if(dstr) dstr.textContent=isSameDay(dashDay,new Date())?('Today '+dashDay.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})):dashDay.toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'short'});
+  // Sales for the selected day
+  const daySales=ST.sales.filter(s=>isSameDay(new Date(s.date),dashDay));
+  const dayRev=daySales.reduce((s,x)=>s+x.total,0);
+  const bAmt=document.getElementById('home-banner-amount');if(bAmt) bAmt.textContent='₹'+fmt(dayRev);
+  const bSub=document.getElementById('home-banner-sub');if(bSub) bSub.textContent=daySales.length+' order'+(daySales.length!=1?'s':'')+' · Tap for POS ›';
+  // Week strip: 7 days ending today (Sun..Sat style — show a rolling week)
+  const week=document.getElementById('home-week');
+  if(week){
+    const base=new Date(); base.setDate(base.getDate()-base.getDay()); // Sunday of this week
+    let html='';
+    for(let i=0;i<7;i++){
+      const d=new Date(base); d.setDate(base.getDate()+i);
+      const has=ST.sales.some(s=>isSameDay(new Date(s.date),d));
+      const sel=isSameDay(d,dashDay);
+      html+=`<div class="day-pill${sel?' sel':''}" onclick="selectDashDay('${d.toISOString()}')">
+        <div class="dow">${d.toLocaleDateString('en-IN',{weekday:'short'})}</div>
+        <div class="dnum">${d.getDate()}</div>
+        ${has&&!sel?'<div class="dot"></div>':'<div style="height:8px"></div>'}
+      </div>`;
+    }
+    week.innerHTML=html;
+  }
+  // Overview colored cards
   const pendingRecv=ST.receivables.filter(r=>!r.settled).reduce((s,r)=>s+r.amount,0);
   const pendingPay=getOverallPayable();
-  const stats=[
-    {val:'₹'+fmt(todayRev),lbl:"Today's Revenue"},
-    {val:todayOrders,lbl:"Today's Orders"},
-    {val:'₹'+fmt(pendingRecv),lbl:'Receivables'},
-    {val:'₹'+fmt(pendingPay),lbl:'Payables'},
-  ];
-  document.getElementById('dash-stats').innerHTML=stats.map(s=>`
-    <div class="stat-card"><div class="val">${s.val}</div><div class="lbl">${s.lbl}</div></div>
-  `).join('');
-  // Cash & Bank balances
+  const cards=document.getElementById('home-cards');
+  if(cards) cards.innerHTML=`
+    <div class="hcard hc-orange" onclick="showPage('sales')"><span class="hc-tag">Sales</span><div><div class="hc-val">${daySales.length}</div><div class="hc-lbl">orders that day</div></div></div>
+    <div class="hcard hc-blue" onclick="showPage('receivables')"><span class="hc-tag">Receivable</span><div><div class="hc-val">₹${fmt(pendingRecv)}</div><div class="hc-lbl">to collect</div></div></div>
+    <div class="hcard hc-pink" onclick="showPage('purchase')"><span class="hc-tag">Payable</span><div><div class="hc-val">₹${fmt(pendingPay)}</div><div class="hc-lbl">to pay</div></div></div>
+    <div class="hcard hc-green" onclick="showPage('production')"><span class="hc-tag">Produce</span><div><div class="hc-val">🏭</div><div class="hc-lbl">make a batch</div></div></div>`;
+  // Cash & Bank
   const acctEl=document.getElementById('dash-accounts');
   if(acctEl){
     if(ST.accounts.length===0){acctEl.innerHTML='';}
-    else acctEl.innerHTML='<h3>Cash & Bank</h3>'+ST.accounts.map(a=>{
+    else acctEl.innerHTML='<h3>Cash &amp; Bank</h3>'+ST.accounts.map(a=>{
       const bal=getAccountBalance(a.id);
-      return`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>${a.name}</span><span style="font-weight:700;color:${bal<0?'#f44336':'#43a047'}">₹${fmt(bal)}</span></div>`;
+      return`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>${a.name}</span><span style="font-weight:700;color:${bal<0?'var(--danger)':'var(--ok)'}">₹${fmt(bal)}</span></div>`;
     }).join('');
   }
-  // Today's items
+  // Recent sales for the selected day
   const el=document.getElementById('dash-today-list');
-  if(todaySales.length===0){el.innerHTML='<div class="empty-state"><div>No sales today yet</div></div>';return;}
-  el.innerHTML=todaySales.slice().reverse().slice(0,5).map(s=>`
-    <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
-      <div style="flex:1"><div style="font-size:14px;font-weight:600">${s.invoice_no}</div>
-        <div style="font-size:12px;color:var(--ink-3)">${s.date_str} · ${s.pay_mode}</div></div>
-      <div style="font-size:15px;font-weight:700;color:#EA580C">₹${fmt(s.total)}</div>
-    </div>
-  `).join('');
+  if(el){
+    if(daySales.length===0){el.innerHTML='<div class="empty-state"><div>No sales on this day</div></div>';}
+    else el.innerHTML=daySales.slice().reverse().slice(0,6).map(s=>`
+      <div class="list-item" style="margin:8px 0" onclick="openSaleDetail(${s.id})">
+        <div style="font-size:24px">🧾</div>
+        <div class="info"><h4>${s.invoice_no}</h4><p>${s.date_str} · ${s.pay_mode}</p></div>
+        <div class="right"><div class="amt">₹${fmt(s.total)}</div></div>
+      </div>`).join('');
+  }
 }
+function isSameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
+function selectDashDay(iso){dashDay=new Date(iso);renderDash();}
 
 // ==================== POS ====================
 function renderPOS(){
