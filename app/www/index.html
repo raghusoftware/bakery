@@ -961,24 +961,41 @@ async function init(){
   if(session&&session.user){ USER=session.user; document.getElementById('app').style.display='flex'; await startApp(); }
   else{ document.getElementById('app').style.display='none'; document.getElementById('auth-overlay').classList.add('show'); }
 }
+function authMsg(t){const e=document.getElementById('auth-msg');if(e)e.textContent=t;}
+function authCreds(){
+  return {email:(document.getElementById('auth-email').value||'').trim().toLowerCase(),
+          pw:document.getElementById('auth-pass').value};
+}
 async function doLogin(){
-  const email=document.getElementById('auth-email').value.trim();
-  const pw=document.getElementById('auth-pass').value;
-  if(!email||!pw){document.getElementById('auth-msg').textContent='Enter email and password';return;}
-  document.getElementById('auth-msg').textContent='Signing in…';
+  const {email,pw}=authCreds();
+  if(!email||!pw){authMsg('Enter email and password');return;}
+  authMsg('Signing in…');
   const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
-  if(error){document.getElementById('auth-msg').textContent=error.message;return;}
+  if(error){authMsg(error.message);return;}
   USER=data.user; await startApp();
 }
 async function doSignup(){
-  const email=document.getElementById('auth-email').value.trim();
-  const pw=document.getElementById('auth-pass').value;
-  if(!email||pw.length<6){document.getElementById('auth-msg').textContent='Enter email and a password (6+ chars)';return;}
-  document.getElementById('auth-msg').textContent='Creating account…';
+  const {email,pw}=authCreds();
+  if(!email){authMsg('Enter an email');return;}
+  if(pw.length<6){authMsg('Password must be at least 6 characters');return;}
+  authMsg('Creating account…');
   const {data,error}=await sb.auth.signUp({email,password:pw});
-  if(error){document.getElementById('auth-msg').textContent=error.message;return;}
-  if(data.session){USER=data.user; await startApp();}
-  else{document.getElementById('auth-msg').textContent='Account created. Check your email to confirm, then Log in.';}
+  if(error){
+    // Existing user → just log them in
+    if(/registered|exists/i.test(error.message)){ return doLogin(); }
+    authMsg(error.message); return;
+  }
+  if(data.session){ USER=data.user; await startApp(); return; }
+  // No session (email-confirm flow): accounts are auto-confirmed, so sign in now
+  authMsg('Account created — signing you in…');
+  const {data:d2,error:e2}=await sb.auth.signInWithPassword({email,password:pw});
+  if(e2){ authMsg('Account created. Please tap "Log in".'); return; }
+  USER=d2.user; await startApp();
+}
+function useReadyAccount(){
+  document.getElementById('auth-email').value='owner@fastbill.app';
+  document.getElementById('auth-pass').value='fastbill123';
+  doLogin();
 }
 async function doLogout(){
   if(!confirm('Log out of FastBill?')) return;
@@ -3077,6 +3094,7 @@ if(document.readyState!=='loading') boot();
     <button class="btn btn-primary" onclick="doLogin()">Log in</button>
     <button class="btn btn-secondary" onclick="doSignup()">Create account</button>
     <div id="auth-msg"></div>
+    <button onclick="useReadyAccount()" style="background:none;border:none;color:var(--brand);font-size:13px;font-weight:600;margin-top:10px;cursor:pointer">Use ready account →</button>
     <p class="auth-note">Your data is stored securely in the cloud and synced across devices. Internet required.</p>
   </div>
 </div>
