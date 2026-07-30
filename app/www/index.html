@@ -27,6 +27,7 @@
   --sh-2:0 6px 18px rgba(20,20,30,.06);
   --sh-3:0 12px 30px rgba(20,20,30,.10);
   --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
 }
 /* DARK THEME — follows the phone's system setting */
 @media(prefers-color-scheme:dark){
@@ -56,7 +57,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 .nav-btn.active{color:var(--brand)}
 .nav-btn span.icon{font-size:21px;line-height:1}
 /* TOPBAR — clean light header with large title */
-.topbar{background:rgba(255,255,255,.9);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);color:var(--ink);padding:14px 16px;display:flex;align-items:center;gap:8px;min-height:56px;border-bottom:.5px solid var(--line);position:sticky;top:0;z-index:20}
+.topbar{background:rgba(255,255,255,.9);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);color:var(--ink);padding:calc(12px + var(--safe-t)) 16px 12px;display:flex;align-items:center;gap:8px;min-height:56px;border-bottom:.5px solid var(--line);position:sticky;top:0;z-index:20}
 .topbar h1{font-size:20px;font-weight:800;flex:1;letter-spacing:-.02em}
 .topbar button{background:var(--fill);border:none;color:var(--brand);padding:8px 13px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;transition:transform .12s,background .15s}
 .topbar button:active{transform:scale(.94)}
@@ -216,7 +217,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 #page-dash{background:var(--card)}
 #page-dash>*{flex:0 0 auto} /* prevent flex-column from squeezing sections */
 @media(prefers-color-scheme:dark){#page-dash{background:var(--bg)}}
-#home-head{display:flex;align-items:center;gap:12px;padding:14px 18px 6px}
+#home-head{display:flex;align-items:center;gap:12px;padding:calc(12px + var(--safe-t)) 18px 6px}
 #home-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#f5b301,#ea580c);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;cursor:pointer;flex:0 0 auto}
 #home-hello{font-size:18px;font-weight:800;letter-spacing:-.02em}
 #home-date{font-size:13px;color:var(--ink-2);margin-top:1px}
@@ -256,6 +257,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   #cart-toggle{bottom:calc(84px + var(--safe-b))}
   #toast{bottom:calc(90px + var(--safe-b))}
 }
+/* POS header (home style) */
+.round-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:transform .12s}
+.round-btn:active{transform:scale(.92)}
+#pos-head{display:flex;align-items:center;gap:10px;padding:calc(12px + var(--safe-t)) 16px 8px;background:var(--card);position:sticky;top:0;z-index:20}
+.pos-h-title{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.pos-h-sub{font-size:12px;color:var(--ink-2);margin-top:1px}
+#pos-search input{border-radius:16px;padding:14px 16px;background:var(--fill);border:none}
+.cat-chip{box-shadow:none;border:1px solid var(--line)}
 /* AUTH */
 #auth-overlay{display:none;position:fixed;inset:0;z-index:600;background:var(--bg);align-items:center;justify-content:center;padding:24px}
 #auth-overlay.show{display:flex}
@@ -306,11 +315,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 
 <!-- POS PAGE -->
 <div id="page-pos" class="page">
-  <div class="topbar">
-    <h1 id="pos-title">🛒 POS</h1>
-    <button onclick="showPage('tables')">🍽️ Tables</button>
-    <button onclick="openBarcodeScanner()">📷</button>
-    <button onclick="showPage('dash')">🏠</button>
+  <div id="pos-head">
+    <button class="round-btn" onclick="showPage('dash')" aria-label="Home">←</button>
+    <div style="flex:1">
+      <div class="pos-h-title" id="pos-title">New Sale</div>
+      <div class="pos-h-sub" id="pos-sub">Tap items to add</div>
+    </div>
+    <button class="round-btn" onclick="showPage('tables')" aria-label="Tables">🍽️</button>
+    <button class="round-btn" onclick="openBarcodeScanner()" aria-label="Scan">📷</button>
   </div>
   <div id="pos-low-stock" style="display:none;background:var(--brand-soft);border-left:3px solid var(--brand);padding:10px 14px;font-size:12px;color:var(--brand)"></div>
   <div id="open-tables-bar" style="display:none;padding:8px 12px;gap:8px;overflow-x:auto;white-space:nowrap;background:var(--brand-tint);border-bottom:1px solid var(--line)"></div>
@@ -1154,7 +1166,7 @@ function showPage(name){
   if(name==='accounts') renderAccounts();
   if(name==='tables') renderTables();
   if(name==='inventory') renderInventory();
-  if(name==='pos') syncCheckoutUI();
+  if(name==='pos'){syncCheckoutUI();renderPOS();}
   if(name==='customers') renderCustomers();
   if(name==='products') renderProductsList();
 }
@@ -1170,12 +1182,21 @@ function setupBackButton(){
 }
 
 function handleBack(){
+  // 1) close the receipt overlay if open
   const ov=document.getElementById('receipt-overlay');
-  if(ov.classList.contains('show')){closeReceipt();return;}
+  if(ov&&ov.classList.contains('show')){closeReceipt();return;}
+  // 2) close any open modal/sheet
   const openModal=document.querySelector('.modal-bg.open');
   if(openModal){openModal.classList.remove('open');return;}
+  // 3) close the cart sheet if it's open
+  if(ST.cartOpen){toggleCart();return;}
+  // 4) if not on Home, go Home
   const curPage=document.querySelector('.page.active');
   if(curPage&&curPage.id!=='page-dash'){showPage('dash');return;}
+  // 5) on Home → exit the app (Capacitor), else do nothing
+  if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App){
+    window.Capacitor.Plugins.App.exitApp();
+  }
 }
 
 // ==================== DASHBOARD ====================
@@ -1305,7 +1326,7 @@ function changeQty(id,delta){
 function clearCart(){
   ST.cart=[];ST.discount=0;ST.customer=null;ST.payMode='CASH';
   ST.orderType='TAKEAWAY';ST.tableNo='';ST.editingOrderId=null;ST.activeTableId=null;
-  const pt=document.getElementById('pos-title');if(pt)pt.textContent='🛒 POS';
+  const pt=document.getElementById('pos-title');if(pt)pt.textContent='New Sale';
   const ct=document.getElementById('cart-title');if(ct)ct.textContent='Order Details';
   const di=document.getElementById('discount-inp');if(di)di.value=0;
   const cs=document.getElementById('cust-select');if(cs)cs.value='';
@@ -1551,7 +1572,8 @@ function syncCheckoutUI(){
   // When a table is already open, its type/number are fixed — hide those fields to keep checkout small
   const otg=document.getElementById('order-type-group');if(otg)otg.style.display=activeTbl?'none':'block';
   const tg=document.getElementById('table-group');if(tg)tg.style.display=(!activeTbl&&ST.orderType==='DINEIN')?'block':'none';
-  const pt=document.getElementById('pos-title');if(pt)pt.textContent=activeTbl?('🍽️ '+ST.tableNo):'🛒 POS';
+  const pt=document.getElementById('pos-title');if(pt)pt.textContent=activeTbl?('🍽️ '+ST.tableNo):'New Sale';
+  const ps=document.getElementById('pos-sub');if(ps)ps.textContent=activeTbl?'Dine-in · tap items to add':'Tap items to add';
   const ct=document.getElementById('cart-title');if(ct)ct.textContent=activeTbl?('Order · '+ST.tableNo):'Order Details';
   const hb=document.getElementById('hold-table-btn');if(hb)hb.style.display=(ST.orderType==='DINEIN')?'block':'none';
 }
