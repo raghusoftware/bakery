@@ -2219,11 +2219,12 @@ async function confirmPaySupplier(){
 }
 
 function showPurchaseTab(tab,btn){
-  ['tab-suppliers','tab-purchases','tab-payables'].forEach(t=>{
-    document.getElementById(t).style.display=t===tab?'block':'none';
+  ['suppliers','purchases','payables'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=(t===tab)?'block':'none';
   });
   document.querySelectorAll('#page-purchase .tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  renderPurchaseTabs();
 }
 
 function renderPurchaseTabs(){
