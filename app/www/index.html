@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>FastBill POS</title>
+<title>Fast Bill POS</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -265,6 +265,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 .pos-h-sub{font-size:12px;color:var(--ink-2);margin-top:1px}
 #pos-search input{border-radius:16px;padding:14px 16px;background:var(--fill);border:none}
 .cat-chip{box-shadow:none;border:1px solid var(--line)}
+/* SPLASH */
+#splash{position:fixed;inset:0;z-index:700;background:linear-gradient(160deg,#ffffff,#eef3ff);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s ease}
+#splash.hide{opacity:0;pointer-events:none}
+#splash svg{filter:drop-shadow(0 10px 22px rgba(31,95,208,.25))}
+.splash-word{font-size:34px;font-weight:900;letter-spacing:-.02em}
+.splash-word .b{color:#1f5fd0}.splash-word .o{color:#f5821f}
+.splash-tag{font-size:12px;font-weight:700;letter-spacing:.15em;color:#9aa0ab}
+#auth-logo{margin-bottom:6px;display:flex;justify-content:center}
 /* AUTH */
 #auth-overlay{display:none;position:fixed;inset:0;z-index:600;background:var(--bg);align-items:center;justify-content:center;padding:24px}
 #auth-overlay.show{display:flex}
@@ -279,6 +287,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 </style>
 </head>
 <body>
+<div id="splash">
+  <svg viewBox="0 0 120 120" width="104" height="104" xmlns="http://www.w3.org/2000/svg" aria-label="Fast Bill">
+    <defs>
+      <linearGradient id="spBlue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4aa3ff"/><stop offset="1" stop-color="#1f5fd0"/></linearGradient>
+      <linearGradient id="spOrange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd08a"/><stop offset="1" stop-color="#f5821f"/></linearGradient>
+    </defs>
+    <path d="M58 22 h34 a6 6 0 0 1 6 6 v64 a6 6 0 0 1 -6 6 h-40 a6 6 0 0 1 -6 -6 v-52 z" fill="url(#spOrange)"/>
+    <path d="M58 22 v14 a4 4 0 0 0 4 4 h14 z" fill="#fff" opacity=".4"/>
+    <g fill="#fff" opacity=".9"><rect x="60" y="54" width="30" height="4" rx="2"/><rect x="60" y="64" width="30" height="4" rx="2"/><rect x="60" y="74" width="22" height="4" rx="2"/></g>
+    <path d="M56 12 L30 64 h16 L40 108 L76 50 H58 L72 12 Z" fill="url(#spBlue)" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>
+  </svg>
+  <div class="splash-word"><span class="b">FAST</span><span class="o">BILL</span></div>
+  <div class="splash-tag">INVOICING · PAYMENTS · GROWTH</div>
+</div>
 <div id="app" style="display:none">
 <!-- PAGES -->
 <!-- DASHBOARD -->
@@ -565,7 +587,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   <div class="topbar"><h1>⚙️ Settings</h1><button onclick="showPage('dash')">← Back</button></div>
   <div class="card">
     <h3>Shop Info</h3>
-    <div class="form-group"><label>Brand / App Name</label><input id="s-brand" type="text" placeholder="e.g. FastBill"></div>
+    <div class="form-group"><label>Brand / App Name</label><input id="s-brand" type="text" placeholder="e.g. Fast Bill"></div>
     <div class="form-group"><label>Shop Name</label><input id="s-name" type="text"></div>
     <div class="form-group"><label>Address</label><textarea id="s-addr"></textarea></div>
     <div class="form-group"><label>Phone</label><input id="s-phone" type="text"></div>
@@ -946,14 +968,16 @@ let ST={
   orderType:'TAKEAWAY',tableNo:'',editingOrderId:null,activeTableId:null,
   catFilter:'all',search:'',
   cartOpen:false,lastSale:null,
-  settings:{brand:'FastBill',name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
+  settings:{brand:'Fast Bill',name:'Jay Narayan Bakery',address:'Station Road, Ahmedabad',phone:'+91 7984178801',gst:5,gstin:''}
 };
 
 // ==================== INIT / AUTH ====================
 // Called once the user is authenticated
+function hideSplash(){const s=document.getElementById('splash');if(s)setTimeout(()=>s.classList.add('hide'),600);}
 async function startApp(){
   document.getElementById('auth-overlay').classList.remove('show');
   document.getElementById('app').style.display='flex';
+  hideSplash();
   await loadAll();
   // Seed a starter catalogue for brand-new accounts
   if(ST.products.length===0 && ST.rawMaterials.length===0) await seedData();
@@ -968,10 +992,10 @@ async function startApp(){
 }
 // Entry point: set up Supabase, then gate on a session
 async function init(){
-  try{ initSb(); }catch(e){ document.getElementById('auth-msg').textContent=e.message; document.getElementById('auth-overlay').classList.add('show'); return; }
+  try{ initSb(); }catch(e){ document.getElementById('auth-msg').textContent=e.message; document.getElementById('auth-overlay').classList.add('show'); hideSplash(); return; }
   const {data:{session}}=await sb.auth.getSession();
   if(session&&session.user){ USER=session.user; document.getElementById('app').style.display='flex'; await startApp(); }
-  else{ document.getElementById('app').style.display='none'; document.getElementById('auth-overlay').classList.add('show'); }
+  else{ document.getElementById('app').style.display='none'; document.getElementById('auth-overlay').classList.add('show'); hideSplash(); }
 }
 function authMsg(t){const e=document.getElementById('auth-msg');if(e)e.textContent=t;}
 function authCreds(){
@@ -1010,7 +1034,7 @@ function useReadyAccount(){
   doLogin();
 }
 async function doLogout(){
-  if(!confirm('Log out of FastBill?')) return;
+  if(!confirm('Log out of Fast Bill?')) return;
   await sb.auth.signOut();
   location.reload();
 }
@@ -1202,7 +1226,7 @@ function handleBack(){
 // ==================== DASHBOARD ====================
 let dashDay=new Date(); // selected day on the home week-strip
 function renderDash(){
-  const brand=(ST.settings&&ST.settings.brand)||'FastBill';
+  const brand=(ST.settings&&ST.settings.brand)||'Fast Bill';
   // Greeting header
   const hello=document.getElementById('home-hello');if(hello) hello.textContent='Hello, '+brand;
   const av=document.getElementById('home-avatar');if(av) av.textContent=brand.trim().charAt(0).toUpperCase()||'F';
@@ -2994,7 +3018,7 @@ function renderCustomers(){
 function populateSettingsForm(){
   const s=ST.settings;
   const ae=document.getElementById('account-email');if(ae&&USER) ae.textContent='Signed in as '+USER.email;
-  const brandTitle=document.getElementById('dash-brand');if(brandTitle) brandTitle.textContent='🧁 '+(s.brand||'FastBill');
+  const brandTitle=document.getElementById('dash-brand');if(brandTitle) brandTitle.textContent='🧁 '+(s.brand||'Fast Bill');
   const bd=document.getElementById('s-brand');if(bd) bd.value=s.brand||'';
   const n=document.getElementById('s-name');if(n) n.value=s.name||'';
   const a=document.getElementById('s-addr');if(a) a.value=s.address||'';
@@ -3096,6 +3120,7 @@ document.querySelectorAll('.modal-bg').forEach(bg=>{
 let _booted=false;
 function boot(){
   if(_booted) return; _booted=true;
+  setTimeout(()=>{const s=document.getElementById('splash');if(s)s.classList.add('hide');},4000); // safety
   if(window.Capacitor){
     window.Capacitor.Plugins.App&&window.Capacitor.Plugins.App.addListener('backButton',handleBack);
   }
@@ -3109,9 +3134,20 @@ if(document.readyState!=='loading') boot();
 <!-- AUTH OVERLAY (sits outside #app so it shows before login) -->
 <div id="auth-overlay">
   <div id="auth-card">
-    <div id="auth-logo">🧁</div>
-    <h1>FastBill</h1>
-    <p class="auth-sub">Sign in to your shop</p>
+    <div id="auth-logo">
+      <svg viewBox="0 0 120 120" width="88" height="88" xmlns="http://www.w3.org/2000/svg" aria-label="Fast Bill logo">
+        <defs>
+          <linearGradient id="fbBlue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4aa3ff"/><stop offset="1" stop-color="#1f5fd0"/></linearGradient>
+          <linearGradient id="fbOrange" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd08a"/><stop offset="1" stop-color="#f5821f"/></linearGradient>
+        </defs>
+        <path d="M58 22 h34 a6 6 0 0 1 6 6 v64 a6 6 0 0 1 -6 6 h-40 a6 6 0 0 1 -6 -6 v-52 z" fill="url(#fbOrange)"/>
+        <path d="M58 22 v14 a4 4 0 0 0 4 4 h14 z" fill="#fff" opacity=".4"/>
+        <g fill="#fff" opacity=".9"><rect x="60" y="54" width="30" height="4" rx="2"/><rect x="60" y="64" width="30" height="4" rx="2"/><rect x="60" y="74" width="22" height="4" rx="2"/></g>
+        <path d="M56 12 L30 64 h16 L40 108 L76 50 H58 L72 12 Z" fill="url(#fbBlue)" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1><span style="color:#1f5fd0">FAST</span><span style="color:#f5821f">BILL</span></h1>
+    <p class="auth-sub">Invoicing · Payments · Growth</p>
     <input id="auth-email" type="email" inputmode="email" autocomplete="username" placeholder="Email">
     <input id="auth-pass" type="password" autocomplete="current-password" placeholder="Password">
     <button class="btn btn-primary" onclick="doLogin()">Log in</button>

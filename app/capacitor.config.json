@@ -1,6 +1,6 @@
 {
   "appId": "com.jnbakery.pos",
-  "appName": "FastBill",
+  "appName": "Fast Bill",
   "webDir": "www",
   "bundledWebRuntime": false,
   "android": {
