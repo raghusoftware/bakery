@@ -466,6 +466,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('receivables')"><div style="font-size:32px">💰</div><div style="font-size:14px;font-weight:600;margin-top:8px">Receivables</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('accounts')"><div style="font-size:32px">🏦</div><div style="font-size:14px;font-weight:600;margin-top:8px">Cash & Bank</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('tables')"><div style="font-size:32px">🍽️</div><div style="font-size:14px;font-weight:600;margin-top:8px">Tables</div></button>
+    <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('reports')"><div style="font-size:32px">📈</div><div style="font-size:14px;font-weight:600;margin-top:8px">Reports / P&amp;L</div></button>
+    <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('expenses')"><div style="font-size:32px">💸</div><div style="font-size:14px;font-weight:600;margin-top:8px">Expenses</div></button>
     <button class="card" style="text-align:center;cursor:pointer;border:none" onclick="showPage('settings')"><div style="font-size:32px">⚙️</div><div style="font-size:14px;font-weight:600;margin-top:8px">Settings</div></button>
   </div>
 </div>
@@ -492,6 +494,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <div class="section-header"><h2 style="font-size:16px">Product Stock</h2><button onclick="openProductModal()">+ Add</button></div>
     <div id="inv-finished-list"></div>
   </div>
+</div>
+
+<!-- REPORTS / P&L PAGE -->
+<div id="page-reports" class="page">
+  <div class="topbar"><h1>📈 Reports / P&amp;L</h1><button onclick="showPage('more')">← Back</button></div>
+  <div class="pay-modes" id="report-period" style="margin:12px">
+    <button class="pay-mode-btn active" onclick="setReportPeriod('day',this)">Today</button>
+    <button class="pay-mode-btn" onclick="setReportPeriod('week',this)">Week</button>
+    <button class="pay-mode-btn" onclick="setReportPeriod('month',this)">Month</button>
+  </div>
+  <div id="reports-body"></div>
+</div>
+
+<!-- EXPENSES PAGE -->
+<div id="page-expenses" class="page">
+  <div class="topbar"><h1>💸 Expenses</h1><button onclick="showPage('more')">← Back</button></div>
+  <div class="section-header"><h2>Expenses</h2><button onclick="openExpenseModal()">+ Add</button></div>
+  <div style="padding:6px 12px;display:flex;gap:8px">
+    <input type="date" id="exp-from" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+    <input type="date" id="exp-to" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+    <button onclick="renderExpenses()" style="padding:8px 14px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px">Filter</button>
+  </div>
+  <div id="exp-summary" style="padding:0 12px 6px;font-size:13px;color:var(--ink-2)"></div>
+  <div id="expenses-list"></div>
 </div>
 
 <!-- ACCOUNTS PAGE -->
@@ -853,6 +879,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
   </div>
 </div>
 
+<!-- Expense Modal -->
+<div class="modal-bg" id="modal-expense">
+  <div class="modal">
+    <h2 id="expense-modal-title">Add Expense</h2>
+    <input type="hidden" id="exp-id">
+    <div class="form-group"><label>Amount (₹)</label><input id="exp-amount" type="number" min="0" step="0.01"></div>
+    <div class="form-group"><label>Category</label>
+      <select id="exp-category" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)">
+        <option>Rent</option><option>Electricity</option><option>Fuel/Gas</option><option>Salary</option>
+        <option>Repairs</option><option>Packaging</option><option>Transport</option><option>Marketing</option>
+        <option>Misc</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Note</label><input id="exp-note" type="text" placeholder="Optional"></div>
+    <div class="form-group"><label>Date</label><input id="exp-date" type="date"></div>
+    <div class="form-group"><label>Pay from Account (optional)</label>
+      <select id="exp-account" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)"></select>
+    </div>
+    <button class="btn btn-primary" onclick="saveExpense()">Save</button>
+    <button class="btn btn-secondary" onclick="closeModal('modal-expense')">Cancel</button>
+  </div>
+</div>
+
 <!-- Account Ledger Modal -->
 <div class="modal-bg" id="modal-ledger">
   <div class="modal">
@@ -885,6 +934,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
       <div class="form-group"><label>Price (₹)</label><input id="prod-price" type="number" min="0" step="0.5"></div>
       <div class="form-group"><label>Stock Qty</label><input id="prod-stock" type="number" min="0"></div>
     </div>
+    <div class="form-group"><label>Labour cost / unit (₹)</label><input id="prod-labor" type="number" min="0" step="0.5" value="0"></div>
+    <div id="prod-cost-hint" style="font-size:12px;color:var(--ink-2);margin:-6px 0 12px"></div>
     <div class="form-group"><label>Barcode</label><input id="prod-barcode" type="text"></div>
     <div class="form-group">
       <label>Photo (optional)</label>
@@ -960,7 +1011,7 @@ let ST={
   staff:[],attendance:[],advances:[],
   suppliers:[],purchases:[],supplierPayments:[],
   receivables:[],
-  accounts:[],accountTxns:[],openOrders:[],tables:[],
+  accounts:[],accountTxns:[],openOrders:[],tables:[],expenses:[],
   cart:[],customer:null,discount:0,
   payMode:'CASH',accountId:null,
   orderType:'TAKEAWAY',tableNo:'',editingOrderId:null,activeTableId:null,
@@ -1042,13 +1093,13 @@ async function loadAll(){
    ST.rawMaterials,ST.recipes,ST.productionLogs,
    ST.staff,ST.attendance,ST.advances,
    ST.suppliers,ST.purchases,ST.supplierPayments,ST.receivables,
-   ST.accounts,ST.accountTxns,ST.openOrders,ST.tables]=
+   ST.accounts,ST.accountTxns,ST.openOrders,ST.tables,ST.expenses]=
   await Promise.all([
     dbGetAll('products'),dbGetAll('categories'),dbGetAll('customers'),dbGetAll('sales'),
     dbGetAll('raw_materials'),dbGetAll('recipes'),dbGetAll('production_logs'),
     dbGetAll('staff'),dbGetAll('attendance'),dbGetAll('advances'),
     dbGetAll('suppliers'),dbGetAll('purchases'),dbGetAll('supplier_payments'),dbGetAll('receivables'),
-    dbGetAll('accounts'),dbGetAll('account_txns'),dbGetAll('open_orders'),dbGetAll('tables')
+    dbGetAll('accounts'),dbGetAll('account_txns'),dbGetAll('open_orders'),dbGetAll('tables'),dbGetAll('expenses')
   ]);
 }
 
@@ -1158,6 +1209,7 @@ function renderAll(){
   renderOpenTables();
   renderTables();
   renderInventory();
+  renderExpenses();
   populateSettingsForm();
   checkLowStock();
 }
@@ -1166,7 +1218,7 @@ function renderAll(){
 const PAGE_NAV_MAP={
   dash:'nav-dash',pos:'nav-pos',production:'nav-production',purchase:'nav-purchase',more:'nav-more',
   rawmat:'nav-more',recipes:'nav-more',staff:'nav-more',sales:'nav-more',
-  products:'nav-more',customers:'nav-more',receivables:'nav-more',accounts:'nav-more',tables:'nav-pos',inventory:'nav-more',settings:'nav-more'
+  products:'nav-more',customers:'nav-more',receivables:'nav-more',accounts:'nav-more',tables:'nav-pos',inventory:'nav-more',reports:'nav-more',expenses:'nav-more',settings:'nav-more'
 };
 
 function showPage(name){
@@ -1188,6 +1240,8 @@ function showPage(name){
   if(name==='accounts') renderAccounts();
   if(name==='tables') renderTables();
   if(name==='inventory') renderInventory();
+  if(name==='reports') renderReports();
+  if(name==='expenses') renderExpenses();
   if(name==='pos'){syncCheckoutUI();renderPOS();}
   if(name==='customers') renderCustomers();
   if(name==='products') renderProductsList();
@@ -2063,6 +2117,183 @@ function getSupplierBalance(supId){
 function getOverallPayable(){
   return ST.suppliers.reduce((s,sup)=>s+getSupplierBalance(sup.id),0);
 }
+// ==================== COST / PROFIT ====================
+// Ingredient cost to make 1 unit of a product (from its recipe)
+function productIngredientCost(pid){
+  return ST.recipes.filter(r=>r.product_id===pid).reduce((s,r)=>{
+    const rm=ST.rawMaterials.find(m=>m.id===r.raw_material_id);
+    return s+(rm?(r.qty_required*(rm.cost_per_unit||0)):0);
+  },0);
+}
+// Total cost per unit = ingredients + labor
+function productCost(pid){
+  const p=ST.products.find(x=>x.id===pid);
+  return productIngredientCost(pid)+((p&&p.labor_cost)||0);
+}
+// Cost of goods for a whole sale (from its item snapshot)
+function saleCost(sale){
+  return (sale.items||[]).reduce((s,i)=>s+productCost(i.id)*i.qty,0);
+}
+// Net revenue we keep (exclude GST collected, which isn't income)
+function saleNetRevenue(sale){ return (sale.subtotal||0)-(sale.discount||0); }
+function saleProfit(sale){ return saleNetRevenue(sale)-saleCost(sale); }
+function saleMargin(sale){ const r=saleNetRevenue(sale); return r>0?(saleProfit(sale)/r*100):0; }
+// Value of stock on hand
+function inventoryValue(){
+  const raw=ST.rawMaterials.reduce((s,r)=>s+((r.stock_qty||0)*(r.cost_per_unit||0)),0);
+  const fin=ST.products.reduce((s,p)=>s+((p.stock_qty||0)*productCost(p.id)),0);
+  return {raw,fin,total:raw+fin};
+}
+// Profit & Loss for a date range [from,to] (Date objects, inclusive)
+function computePnL(from,to){
+  const inRange=d=>{const t=new Date(d);return t>=from&&t<=to;};
+  const sales=ST.sales.filter(s=>inRange(s.date));
+  const revenue=sales.reduce((s,x)=>s+saleNetRevenue(x),0);
+  const cogs=sales.reduce((s,x)=>s+saleCost(x),0);
+  const gross=revenue-cogs;
+  const expenses=ST.expenses.filter(e=>inRange(e.date)).reduce((s,e)=>s+(+e.amount||0),0);
+  const net=gross-expenses;
+  return {orders:sales.length,revenue,cogs,gross,expenses,net,margin:revenue>0?gross/revenue*100:0,sales};
+}
+
+// ==================== EXPENSES ====================
+function openExpenseModal(id){
+  const e=id?ST.expenses.find(x=>x.id===id):null;
+  document.getElementById('expense-modal-title').textContent=e?'Edit Expense':'Add Expense';
+  document.getElementById('exp-id').value=e?e.id:'';
+  document.getElementById('exp-amount').value=e?e.amount:'';
+  document.getElementById('exp-category').value=e?e.category:'Rent';
+  document.getElementById('exp-note').value=e?e.note||'':'';
+  document.getElementById('exp-date').value=e?new Date(e.date).toISOString().slice(0,10):new Date().toISOString().slice(0,10);
+  const sel=document.getElementById('exp-account');
+  sel.innerHTML='<option value="">— none —</option>'+ST.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  sel.value=e&&e.account_id?e.account_id:'';
+  openModal('modal-expense');
+}
+async function saveExpense(){
+  const id=+document.getElementById('exp-id').value||null;
+  const amount=+document.getElementById('exp-amount').value;
+  if(!(amount>0)){showToast('Enter an amount','e');return;}
+  const accId=+document.getElementById('exp-account').value||null;
+  const dateStr=document.getElementById('exp-date').value;
+  const obj={amount,category:document.getElementById('exp-category').value,
+    note:document.getElementById('exp-note').value,account_id:accId,
+    date:new Date(dateStr||Date.now()).toISOString()};
+  if(id){
+    const cur=ST.expenses.find(x=>x.id===id)||{};
+    await dbPut('expenses',{...cur,...obj,id});
+  }else{
+    await dbAdd('expenses',obj);
+    if(accId) await postAccountTxn(accId,-amount,'EXPENSE',obj.category,obj.note); // money out
+  }
+  closeModal('modal-expense');
+  await loadAll();renderAll();
+  showToast('Expense saved');
+}
+async function deleteExpense(id){
+  const e=ST.expenses.find(x=>x.id===id); if(!e) return;
+  if(!confirm('Delete this expense?')) return;
+  if(e.account_id) await postAccountTxn(e.account_id,+e.amount,'EXPENSE_REV',e.category,'Expense deleted');
+  await dbDelete('expenses',id);
+  await loadAll();renderAll();
+  showToast('Expense deleted');
+}
+function renderExpenses(){
+  const list=document.getElementById('expenses-list'); if(!list) return;
+  const f=(document.getElementById('exp-from')||{}).value;
+  const t=(document.getElementById('exp-to')||{}).value;
+  let rows=[...ST.expenses].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(f) rows=rows.filter(e=>new Date(e.date)>=new Date(f));
+  if(t) rows=rows.filter(e=>new Date(e.date)<=new Date(t+'T23:59:59'));
+  const tot=rows.reduce((s,e)=>s+(+e.amount||0),0);
+  const sb=document.getElementById('exp-summary');if(sb) sb.innerHTML=`<b>${rows.length}</b> entries · <b>₹${fmt(tot)}</b> total`;
+  if(rows.length===0){list.innerHTML='<div class="empty-state"><div class="icon">💸</div><div>No expenses in range</div></div>';return;}
+  list.innerHTML=rows.map(e=>{
+    const acc=ST.accounts.find(a=>a.id===e.account_id);
+    return`<div class="list-item">
+      <div style="font-size:24px">💸</div>
+      <div class="info"><h4>${e.category}</h4><p>${new Date(e.date).toLocaleDateString('en-IN')}${e.note?' · '+e.note:''}${acc?' · '+acc.name:''}</p></div>
+      <div class="right"><div class="amt text-red">₹${fmt(e.amount)}</div>
+        <div style="display:flex;gap:4px;margin-top:4px"><button onclick="openExpenseModal(${e.id})" class="btn btn-secondary btn-sm">Edit</button><button onclick="deleteExpense(${e.id})" class="btn btn-danger btn-sm">🗑</button></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ==================== REPORTS / P&L ====================
+let reportPeriod='day';
+function setReportPeriod(p,btn){
+  reportPeriod=p;
+  document.querySelectorAll('#report-period .pay-mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReports();
+}
+function periodRange(){
+  const now=new Date(); const to=new Date(now); to.setHours(23,59,59,999);
+  const from=new Date(now); from.setHours(0,0,0,0);
+  if(reportPeriod==='week') from.setDate(from.getDate()-6);
+  else if(reportPeriod==='month') from.setDate(from.getDate()-29);
+  const label=reportPeriod==='day'?'Today':(reportPeriod==='week'?'Last 7 days':'Last 30 days');
+  return {from,to,label};
+}
+function renderReports(){
+  const body=document.getElementById('reports-body'); if(!body) return;
+  const {from,to,label}=periodRange();
+  const r=computePnL(from,to);
+  const inv=inventoryValue();
+  // top products by profit in range
+  const prodStat={};
+  r.sales.forEach(s=>(s.items||[]).forEach(i=>{
+    const st=prodStat[i.id]||(prodStat[i.id]={name:i.name,qty:0,revenue:0,profit:0});
+    const c=productCost(i.id);
+    st.qty+=i.qty; st.revenue+=i.price*i.qty; st.profit+=(i.price-c)*i.qty;
+  }));
+  const top=Object.values(prodStat).sort((a,b)=>b.profit-a.profit).slice(0,5);
+  const line=(l,v,cls,bold)=>`<div style="display:flex;justify-content:space-between;padding:6px 0;${bold?'font-weight:800;font-size:17px':''}"><span>${l}</span><span class="${cls||''}">${v}</span></div>`;
+  body.innerHTML=`
+    <div class="card" style="margin:8px 12px">
+      <h3>Profit & Loss — ${label}</h3>
+      ${line('Orders', r.orders)}
+      ${line('Revenue (net of GST)','₹'+fmt(r.revenue))}
+      ${line('− Cost of goods (COGS)','₹'+fmt(r.cogs),'text-red')}
+      <div class="divider"></div>
+      ${line('Gross profit','₹'+fmt(r.gross), r.gross>=0?'text-green':'text-red')}
+      ${line('Gross margin', r.margin.toFixed(1)+'%')}
+      ${line('− Expenses','₹'+fmt(r.expenses),'text-red')}
+      <div class="divider"></div>
+      ${line('Net profit','₹'+fmt(r.net), r.net>=0?'text-green':'text-red', true)}
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="val">₹${fmt(inv.total)}</div><div class="lbl">Inventory value</div></div>
+      <div class="stat-card"><div class="val">₹${fmt(r.revenue/(r.orders||1))}</div><div class="lbl">Avg order value</div></div>
+    </div>
+    <div class="card" style="margin:8px 12px">
+      <h3>Top products (by profit)</h3>
+      ${top.length?top.map(p=>`<div style="display:flex;align-items:center;padding:6px 0;border-bottom:.5px solid var(--line)">
+        <div style="flex:1"><div style="font-weight:600">${p.name}</div><div style="font-size:11px;color:var(--ink-3)">${p.qty} sold · ₹${fmt(p.revenue)} sales</div></div>
+        <div class="text-green" style="font-weight:700">₹${fmt(p.profit)}</div></div>`).join(''):'<div style="color:var(--ink-3);font-size:13px">No sales in this period</div>'}
+    </div>
+    <button class="btn btn-primary" style="margin:4px 12px 16px;width:calc(100% - 24px)" onclick="printPnL()">🖨️ Save P&amp;L PDF</button>`;
+}
+function printPnL(){
+  const {from,to,label}=periodRange();
+  const r=computePnL(from,to);
+  const row=(l,v)=>`<div style="display:flex;justify-content:space-between;padding:3px 0"><span>${l}</span><span>${v}</span></div>`;
+  const html=`
+    <div style="text-align:center;margin-bottom:10px"><div style="font-size:18px;font-weight:700">${ST.settings.name}</div><div style="font-size:13px">Profit & Loss — ${label}</div><div style="font-size:11px;color:#555">${from.toLocaleDateString('en-IN')} – ${to.toLocaleDateString('en-IN')}</div></div>
+    <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:8px 0;font-size:13px">
+      ${row('Orders', r.orders)}
+      ${row('Revenue (net of GST)','₹'+fmt(r.revenue))}
+      ${row('Cost of goods sold','− ₹'+fmt(r.cogs))}
+      ${row('Gross profit ('+r.margin.toFixed(1)+'%)','₹'+fmt(r.gross))}
+      ${row('Expenses','− ₹'+fmt(r.expenses))}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-top:8px"><span>NET PROFIT</span><span>₹${fmt(r.net)}</span></div>`;
+  document.getElementById('receipt-content').innerHTML=html;
+  document.getElementById('receipt-overlay').classList.add('show');
+  history.pushState({receiptOpen:true},'','');
+  setTimeout(()=>window.print(),300);
+}
 // Printable supplier ledger: all bills (debit) + payments (credit) with running balance
 function printSupplierLedger(supId){
   const sup=ST.suppliers.find(s=>s.id===supId); if(!sup) return;
@@ -2883,6 +3114,12 @@ function openSaleDetail(saleId){
     <p style="font-size:13px;color:var(--ink-2)">${s.date_str} · ${s.customer_name} · ${s.pay_mode}${acc?' → '+acc.name:''}${s.order_type==='DINEIN'?' · Table '+(s.table_no||'—'):''}</p>
     <div style="margin:10px 0">${s.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--line);font-size:14px"><span>${i.name} ×${i.qty}</span><span>₹${fmt(i.price*i.qty)}</span></div>`).join('')}</div>
     <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;color:var(--brand)"><span>Total</span><span>₹${fmt(s.total)}</span></div>
+    <div class="card" style="margin:12px 0 4px;background:var(--brand-tint)">
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span>Cost of goods</span><span>₹${fmt(saleCost(s))}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ink-2)"><span>Net revenue (ex-GST)</span><span>₹${fmt(saleNetRevenue(s))}</span></div>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;font-weight:800"><span>Profit</span><span class="${saleProfit(s)>=0?'text-green':'text-red'}">₹${fmt(saleProfit(s))} · ${saleMargin(s).toFixed(0)}%</span></div>
+    </div>
     <button class="btn btn-secondary" onclick="closeModal('modal-sale');doPrint(ST.sales.find(x=>x.id===${saleId}))">🖨️ Reprint / PDF</button>
     <button class="btn btn-primary" onclick="reopenSale(${saleId})">✏️ Reopen &amp; Edit</button>
     <button class="btn btn-danger" onclick="deleteSaleConfirm(${saleId})">🗑️ Delete Sale</button>
@@ -2934,9 +3171,13 @@ function openProductModal(id){
   document.getElementById('prod-price').value=p?p.price:0;
   document.getElementById('prod-stock').value=p?p.stock_qty:0;
   document.getElementById('prod-barcode').value=p?p.barcode||'':'';
+  document.getElementById('prod-labor').value=p?(p.labor_cost||0):0;
   document.getElementById('prod-image').value=p&&p.image?p.image:'';
   document.getElementById('prod-image-file').value='';
   document.getElementById('prod-image-preview').innerHTML=(p&&p.image)?`<img src="${p.image}" style="width:64px;height:64px;object-fit:cover;border-radius:8px">`:'';
+  const hint=document.getElementById('prod-cost-hint');
+  if(hint&&p){const ing=productIngredientCost(p.id);hint.textContent=`Ingredient cost ₹${fmt(ing)} + labour → total cost ₹${fmt(ing+(+p.labor_cost||0))} · profit ₹${fmt((p.price||0)-(ing+(+p.labor_cost||0)))}`;}
+  else if(hint){hint.textContent='';}
   openModal('modal-product');
 }
 function handleProductImage(input){
@@ -2967,6 +3208,7 @@ async function saveProduct(){
   const obj={name,category:document.getElementById('prod-cat').value,
     price:+document.getElementById('prod-price').value,
     stock_qty:+document.getElementById('prod-stock').value,
+    labor_cost:+document.getElementById('prod-labor').value||0,
     barcode:document.getElementById('prod-barcode').value,
     image:document.getElementById('prod-image').value||''};
   if(id) await dbPut('products',{...obj,id});
@@ -3127,6 +3369,9 @@ document.querySelectorAll('.modal-bg').forEach(bg=>{
   const to=document.getElementById('sales-to');
   if(from) from.value=today;
   if(to) to.value=today;
+  const monAgo=new Date(); monAgo.setDate(monAgo.getDate()-29);
+  const ef=document.getElementById('exp-from'); if(ef) ef.value=monAgo.toISOString().slice(0,10);
+  const et=document.getElementById('exp-to'); if(et) et.value=today;
 })();
 
 // Capacitor / startup (guard against double init)
