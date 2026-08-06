@@ -530,14 +530,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <div id="staff-list"></div>
   </div>
   <div id="attendance-tab" style="display:none">
-    <div style="padding:10px 12px;display:flex;gap:8px;align-items:center">
-      <label style="font-size:12px;color:var(--ink-2)">Date</label>
-      <input type="date" id="att-date" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px" onchange="renderStaff()">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px 4px">
+      <button onclick="shiftAttMonth(-1)" class="round-btn" style="width:38px;height:38px;font-size:16px">◀</button>
+      <input type="date" id="att-date" style="flex:1;padding:11px;border:1px solid var(--line);border-radius:12px;font-size:14px;text-align:center;background:var(--card);color:var(--ink)" onchange="renderStaff()">
+      <button onclick="shiftAttMonth(1)" class="round-btn" style="width:38px;height:38px;font-size:16px">▶</button>
     </div>
-    <div class="section-header"><h2 style="font-size:15px">Mark Attendance</h2></div>
     <div id="attendance-list"></div>
-    <div class="section-header"><h2 style="font-size:15px;color:var(--ink-3)">Payroll — whom to pay</h2></div>
-    <div id="attendance-summary"></div>
   </div>
   <div id="advances-tab" style="display:none">
     <div class="section-header"><h2>Advances</h2><button onclick="openAdvanceModal()">+ Add</button></div>
@@ -1217,9 +1215,9 @@ function handleBack(){
   // 4) if not on Home, go Home
   const curPage=document.querySelector('.page.active');
   if(curPage&&curPage.id!=='page-dash'){showPage('dash');return;}
-  // 5) on Home → exit the app (Capacitor), else do nothing
+  // 5) on Home → ask before exiting
   if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App){
-    window.Capacitor.Plugins.App.exitApp();
+    if(confirm('Exit Fast Bill?')) window.Capacitor.Plugins.App.exitApp();
   }
 }
 
@@ -2065,6 +2063,30 @@ function getSupplierBalance(supId){
 function getOverallPayable(){
   return ST.suppliers.reduce((s,sup)=>s+getSupplierBalance(sup.id),0);
 }
+// Printable supplier ledger: all bills (debit) + payments (credit) with running balance
+function printSupplierLedger(supId){
+  const sup=ST.suppliers.find(s=>s.id===supId); if(!sup) return;
+  const bills=ST.purchases.filter(p=>p.supplier_id===supId).map(p=>({date:p.date,dstr:p.date_str,label:(p.raw_material_name||'Purchase')+' '+fmt(p.qty)+(p.unit||''),debit:p.total,credit:0}));
+  const pays=ST.supplierPayments.filter(p=>p.supplier_id===supId).map(p=>({date:p.date,dstr:new Date(p.date).toLocaleDateString('en-IN'),label:'Payment'+(p.note?' · '+p.note:''),debit:0,credit:p.amount}));
+  const rows=[...bills,...pays].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  let bal=0; const totBill=bills.reduce((s,r)=>s+r.debit,0), totPay=pays.reduce((s,r)=>s+r.credit,0);
+  const body=rows.map(r=>{bal+=r.debit-r.credit;return `<tr><td style="padding:2px 0">${r.dstr}</td><td>${r.label}</td><td style="text-align:right">${r.debit?'₹'+fmt(r.debit):''}</td><td style="text-align:right">${r.credit?'₹'+fmt(r.credit):''}</td><td style="text-align:right">₹${fmt(bal)}</td></tr>`;}).join('');
+  const html=`
+    <div style="text-align:center;margin-bottom:10px"><div style="font-size:18px;font-weight:700">${ST.settings.name}</div><div style="font-size:13px">Supplier Ledger — ${sup.name}</div>${sup.phone?`<div style="font-size:11px;color:#555">${sup.phone}</div>`:''}</div>
+    <table style="width:100%;font-size:11px;border-collapse:collapse">
+      <tr style="border-bottom:1px solid #ccc"><th style="text-align:left">Date</th><th style="text-align:left">Details</th><th style="text-align:right">Bill</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th></tr>
+      ${body||'<tr><td colspan="5" style="text-align:center;padding:10px;color:#888">No transactions</td></tr>'}
+    </table>
+    <div style="border-top:1px dashed #ccc;margin-top:8px;padding-top:8px;font-size:13px">
+      <div style="display:flex;justify-content:space-between"><span>Total billed</span><span>₹${fmt(totBill)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Total paid</span><span>₹${fmt(totPay)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;margin-top:4px"><span>Outstanding</span><span>₹${fmt(getSupplierBalance(supId))}</span></div>
+    </div>`;
+  document.getElementById('receipt-content').innerHTML=html;
+  document.getElementById('receipt-overlay').classList.add('show');
+  history.pushState({receiptOpen:true},'','');
+  setTimeout(()=>window.print(),300);
+}
 
 // ==================== PURCHASES ====================
 function openPurchaseModal(editId){
@@ -2264,7 +2286,7 @@ function renderPurchaseTabs(){
         <div class="amt${bal>0?' text-red':'text-green'}">₹${fmt(bal)}</div>
         <div style="font-size:11px;color:var(--ink-3)">Outstanding</div>
         ${bal>0?`<button onclick="openPaySupplierModal(${s.id})" class="btn btn-primary btn-sm" style="margin-top:4px">Pay</button>`:''}
-        <div style="display:flex;gap:4px;margin-top:4px"><button onclick="openSupplierModal(${s.id})" class="btn btn-secondary btn-sm">Edit</button><button onclick="deleteSupplier(${s.id})" class="btn btn-danger btn-sm">🗑</button></div>
+        <div style="display:flex;gap:4px;margin-top:4px"><button onclick="printSupplierLedger(${s.id})" class="btn btn-secondary btn-sm">📄 PDF</button><button onclick="openSupplierModal(${s.id})" class="btn btn-secondary btn-sm">Edit</button><button onclick="deleteSupplier(${s.id})" class="btn btn-danger btn-sm">🗑</button></div>
       </div>
     </div>`;
   }).join('');
@@ -2769,50 +2791,41 @@ function renderStaff(){
       </div>`;
     }).join('');
   }
-  // Attendance for selected date
+  // Attendance — one simple card per staff: mark today + this month's pay
   const attList=document.getElementById('attendance-list');
   if(attList){
     const adEl=document.getElementById('att-date');
     if(adEl&&!adEl.value) adEl.value=new Date().toISOString().slice(0,10);
-    const dayKey=new Date(getAttDate()).toDateString();
-    if(ST.staff.length===0){attList.innerHTML='<div class="empty-state"><div>No staff</div></div>';}
-    else attList.innerHTML=ST.staff.map(s=>{
-      const att=ST.attendance.find(a=>a.staff_id===s.id&&new Date(a.date).toDateString()===dayKey);
-      return`<div class="list-item">
-        <div style="font-size:28px">👤</div>
-        <div class="info"><h4>${s.name}</h4><p>${s.role||''}</p></div>
-        <div class="right" style="display:flex;gap:6px;align-items:center">
-          <button onclick="markAttendance(${s.id},'P')" class="btn btn-sm" style="background:${att&&att.status==='P'?'#43a047':'var(--line)'};color:${att&&att.status==='P'?'#fff':'#333'}">P</button>
-          <button onclick="markAttendance(${s.id},'A')" class="btn btn-sm" style="background:${att&&att.status==='A'?'#f44336':'var(--line)'};color:${att&&att.status==='A'?'#fff':'#333'}">A</button>
-          <button onclick="markAttendance(${s.id},'H')" class="btn btn-sm" style="background:${att&&att.status==='H'?'#fb8c00':'var(--line)'};color:${att&&att.status==='H'?'#fff':'#333'}">H</button>
-        </div>
-      </div>`;
-    }).join('');
-  }
-  // Payroll list — one tap shows everyone: whom to pay and how much
-  const attSum=document.getElementById('attendance-summary');
-  if(attSum){
     const sel=new Date(getAttDate());
-    const monthName=sel.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
-    const monthHeader=`<div style="display:flex;align-items:center;gap:10px;padding:0 12px 8px">
-      <button onclick="shiftAttMonth(-1)" class="btn btn-secondary btn-sm">◀</button>
-      <div style="flex:1;text-align:center;font-weight:700">${monthName}</div>
-      <button onclick="shiftAttMonth(1)" class="btn btn-secondary btn-sm">▶</button>
-    </div>`;
-    if(ST.staff.length===0){attSum.innerHTML=monthHeader+'<div class="empty-state"><div>No staff</div></div>';}
+    const dayKey=sel.toDateString();
+    const isToday=isSameDay(sel,new Date());
+    const monthName=sel.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+    if(ST.staff.length===0){attList.innerHTML='<div class="empty-state"><div class="icon">👤</div><div>No staff yet — add someone in the Staff tab</div></div>';}
     else{
       const totalPay=ST.staff.reduce((t,s)=>t+staffPayroll(s.id,sel).net,0);
-      const totalCard=`<div class="card" style="background:var(--brand-soft);margin:0 12px 8px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">Total to pay (${monthName})</span><span class="big" style="font-size:22px">₹${fmt(totalPay)}</span></div></div>`;
-      attSum.innerHTML=monthHeader+totalCard+ST.staff.map(s=>{
+      const dstr=sel.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short'});
+      const head=`<div class="card" style="background:var(--brand-soft);margin:8px 12px;display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:12px;color:var(--ink-2)">Marking ${isToday?'today':dstr} · Payroll ${monthName}</div><div style="font-weight:700">Total to pay</div></div>
+        <div class="big" style="font-size:22px">₹${fmt(totalPay)}</div></div>`;
+      attList.innerHTML=head+ST.staff.map(s=>{
+        const att=ST.attendance.find(a=>a.staff_id===s.id&&new Date(a.date).toDateString()===dayKey);
         const pr=staffPayroll(s.id,sel);
-        return`<div class="list-item" onclick="openStaffDetail(${s.id})" style="cursor:pointer">
-          <div style="font-size:28px">👤</div>
-          <div class="info"><h4>${s.name}</h4>
-            <p><span class="chip chip-green">P ${pr.P}</span> <span class="chip chip-amber">H ${pr.H}</span> <span class="chip chip-red">A ${pr.A}</span></p>
-            <p style="font-size:11px;color:var(--ink-3)">Earned ₹${fmt(pr.earned)}${pr.advTotal?' − Adv ₹'+fmt(pr.advTotal):''}</p></div>
-          <div class="right">
-            <div class="amt${pr.net<0?' text-red':''}" style="font-size:18px">₹${fmt(pr.net)}</div>
-            <div style="font-size:10px;color:var(--ink-3)">to pay ›</div>
+        const st=att?att.status:'';
+        const seg=(code,label,bg)=>`<button class="pay-mode-btn${st===code?' active':''}" onclick="markAttendance(${s.id},'${code}')" style="${st===code?'color:'+bg+';font-weight:700':''}">${label}</button>`;
+        return`<div class="card" style="margin:8px 12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:24px">👤</div>
+            <div style="flex:1"><div style="font-weight:700">${s.name}</div>
+              <div style="font-size:11px;color:var(--ink-2)">${s.role||'Staff'} · ${s.wage_type==='DAILY'?'₹'+fmt(s.daily_rate)+'/day':'₹'+fmt(s.monthly_salary)+'/mo'}</div></div>
+            <div style="text-align:right"><div class="amt${pr.net<0?' text-red':''}" style="font-size:18px">₹${fmt(pr.net)}</div><div style="font-size:10px;color:var(--ink-3)">net · ${monthName}</div></div>
+          </div>
+          <div class="pay-modes" style="margin-top:10px">${seg('P','✓ Present','#1f9d57')}${seg('H','◐ Half','#c8791a')}${seg('A','✕ Absent','#e5484d')}</div>
+          <div style="display:flex;align-items:center;margin-top:8px">
+            <span style="font-size:11px;color:var(--ink-3)"><span class="chip chip-green">P ${pr.P}</span> <span class="chip chip-amber">H ${pr.H}</span> <span class="chip chip-red">A ${pr.A}</span></span>
+            <span style="margin-left:auto;display:flex;gap:6px">
+              <button onclick="openStaffDetail(${s.id})" class="btn btn-secondary btn-sm">Calendar</button>
+              <button onclick="printSalarySlip(${s.id})" class="btn btn-secondary btn-sm">📄 Slip</button>
+            </span>
           </div>
         </div>`;
       }).join('');
