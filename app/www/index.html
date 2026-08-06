@@ -311,6 +311,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     <div style="flex:1">
       <div id="home-hello">Hello</div>
       <div id="home-date">Today</div>
+      <div id="sync-badge" onclick="syncNow()" style="font-size:11px;font-weight:700;margin-top:1px;cursor:pointer;color:var(--ink-3)"></div>
     </div>
     <button id="home-search" onclick="showPage('sales')" aria-label="Search">🔍</button>
   </div>
@@ -975,33 +976,112 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div id="toast"></div>
 <script src="supabase.js"></script>
 <script>
-// ==================== SUPABASE DATA LAYER ====================
+// ==================== OFFLINE-FIRST DATA LAYER ====================
+// Local IndexedDB is the source of truth for the running app (works with no
+// internet). Every write is saved locally instantly and marked _dirty; when
+// online, changes are pushed to Supabase and remote changes pulled down.
 const SUPA_URL='https://qqwpymcvliyghotlldfi.supabase.co';
 const SUPA_KEY='sb_publishable_wW0NutUznDMOXwMoXvHeTQ_T9oe8-KS';
-let sb=null, USER=null;
+let sb=null, USER=null, syncing=false;
+const DATA_STORES=['categories','products','customers','sales','raw_materials','recipes','production_logs','staff','attendance','advances','suppliers','purchases','supplier_payments','receivables','accounts','account_txns','open_orders','tables','expenses'];
 
 function initSb(){
-  if(!window.supabase){throw new Error('Supabase library not loaded — check internet connection');}
-  sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage}});
+  if(window.supabase) sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage}});
 }
+// Client-generated ids so local & cloud rows share the same key (no remapping)
+let _idc=0;
+function nextId(){ return Date.now()*1000 + ((_idc=(_idc+1)%1000)); }
+
+// ---- Local IndexedDB cache ----
+const LDB_NAME='FastBillLocal', LDB_VER=1; let ldb;
+function openLocal(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(LDB_NAME,LDB_VER);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      DATA_STORES.forEach(s=>{ if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:'id'}); });
+      if(!d.objectStoreNames.contains('settings')) d.createObjectStore('settings',{keyPath:'k'});
+      if(!d.objectStoreNames.contains('_deletes')) d.createObjectStore('_deletes',{keyPath:'key',autoIncrement:true});
+    };
+    req.onsuccess=e=>{ldb=e.target.result;res();};
+    req.onerror=e=>rej(e);
+  });
+}
+function lTx(store,mode){ return ldb.transaction(store,mode).objectStore(store); }
+function lGetAll(store){ return new Promise((res)=>{const r=lTx(store,'readonly').getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>res([]);}); }
+function lPut(store,obj){ return new Promise((res)=>{const r=lTx(store,'readwrite').put(obj);r.onsuccess=()=>res();r.onerror=()=>res();}); }
+function lDel(store,id){ return new Promise((res)=>{const r=lTx(store,'readwrite').delete(id);r.onsuccess=()=>res();r.onerror=()=>res();}); }
+function lClear(store){ return new Promise((res)=>{const r=lTx(store,'readwrite').clear();r.onsuccess=()=>res();r.onerror=()=>res();}); }
+
+// ---- Public db API used across the app (local-first) ----
 async function dbGetAll(store){
-  const {data,error}=await sb.from(store).select('*').order('id',{ascending:true});
-  if(error){console.error('load '+store,error.message);return [];}
-  return data||[];
+  const rows=await lGetAll(store);
+  return rows.map(({_dirty,...r})=>r).sort((a,b)=>(a.id||0)-(b.id||0));
+}
+async function pushRow(store,row){
+  if(!navigator.onLine||!sb||!USER) return false;
+  try{ const {_dirty,...clean}=row; const {error}=await sb.from(store).upsert(clean); return !error; }catch(e){ return false; }
 }
 async function dbAdd(store,obj){
-  const {data,error}=await sb.from(store).insert(obj).select('id').single();
-  if(error){showToast('Save failed: '+error.message,'e');throw error;}
-  return data.id;
+  const id=obj.id||nextId(); const row={...obj,id,_dirty:true};
+  await lPut(store,row);
+  if(await pushRow(store,row)){ row._dirty=false; await lPut(store,row); }
+  updateSyncBadge();
+  return id;
 }
 async function dbPut(store,obj){
-  const {error}=await sb.from(store).upsert(obj);
-  if(error){showToast('Save failed: '+error.message,'e');throw error;}
+  const row={...obj,_dirty:true};
+  await lPut(store,row);
+  if(await pushRow(store,row)){ row._dirty=false; await lPut(store,row); }
+  updateSyncBadge();
   return obj.id;
 }
 async function dbDelete(store,id){
-  const {error}=await sb.from(store).delete().eq('id',id);
-  if(error){showToast('Delete failed: '+error.message,'e');throw error;}
+  await lDel(store,id);
+  let done=false;
+  if(navigator.onLine&&sb&&USER){ try{ const {error}=await sb.from(store).delete().eq('id',id); done=!error; }catch(e){} }
+  if(!done) await lPut('_deletes',{store,id});
+  updateSyncBadge();
+}
+
+// ---- Sync engine ----
+async function syncNow(){
+  if(syncing||!navigator.onLine||!sb||!USER) return;
+  syncing=true; updateSyncBadge();
+  try{
+    // 1) push queued deletes
+    const dels=await lGetAll('_deletes');
+    for(const d of dels){ try{ const {error}=await sb.from(d.store).delete().eq('id',d.id); if(!error) await lDel('_deletes',d.key); }catch(e){} }
+    // 2) push dirty rows + pull remote per table
+    for(const store of DATA_STORES){
+      const local=await lGetAll(store);
+      for(const r of local.filter(x=>x._dirty)){ if(await pushRow(store,r)){ r._dirty=false; await lPut(store,r); } }
+      let remote=null; try{ const {data,error}=await sb.from(store).select('*'); if(!error) remote=data; }catch(e){}
+      if(remote){
+        const dirty=(await lGetAll(store)).filter(r=>r._dirty);
+        const dirtyIds=new Set(dirty.map(r=>r.id));
+        await lClear(store);
+        for(const rr of remote){ if(!dirtyIds.has(rr.id)) await lPut(store,{...rr,_dirty:false}); }
+        for(const r of dirty) await lPut(store,r);
+      }
+    }
+    // 3) settings
+    try{ const {data}=await sb.from('settings').select('*').maybeSingle(); if(data) await lPut('settings',{k:'main',value:data}); }catch(e){}
+  }finally{ syncing=false; updateSyncBadge(); }
+}
+// Reflect connection/sync state in the UI
+async function pendingCount(){
+  let n=(await lGetAll('_deletes')).length;
+  for(const s of DATA_STORES){ n+=(await lGetAll(s)).filter(r=>r._dirty).length; }
+  return n;
+}
+async function updateSyncBadge(){
+  const el=document.getElementById('sync-badge'); if(!el) return;
+  if(!navigator.onLine){ el.textContent='● Offline'; el.style.color='var(--warn)'; return; }
+  if(syncing){ el.textContent='⟳ Syncing…'; el.style.color='var(--ink-3)'; return; }
+  const n=await pendingCount();
+  el.textContent=n>0?('● '+n+' to sync'):'● Synced';
+  el.style.color=n>0?'var(--warn)':'var(--ok)';
 }
 
 // ==================== STATE ====================
@@ -1027,10 +1107,11 @@ async function startApp(){
   document.getElementById('auth-overlay').classList.remove('show');
   document.getElementById('app').style.display='flex';
   hideSplash();
+  // Pull latest from cloud + push anything pending (best-effort; offline is fine)
+  if(navigator.onLine) await syncNow();
   await loadAll();
-  // Seed a starter catalogue for brand-new accounts
-  if(ST.products.length===0 && ST.rawMaterials.length===0) await seedData();
-  await loadAll();
+  // Seed a starter catalogue for a brand-new account
+  if(ST.products.length===0 && ST.rawMaterials.length===0){ await seedData(); await loadAll(); }
   await ensureDefaultAccount();
   ST.accountId=getDefaultAccountId();
   await loadSettings();
@@ -1038,13 +1119,24 @@ async function startApp(){
   showPage('dash');
   setupBackButton();
   checkLowStock();
+  updateSyncBadge();
+  // React to connectivity changes
+  window.addEventListener('online', async ()=>{ showToast('Back online — syncing'); await syncNow(); await loadAll(); renderAll(); });
+  window.addEventListener('offline', ()=>{ showToast('Offline — changes saved on device'); updateSyncBadge(); });
 }
-// Entry point: set up Supabase, then gate on a session
+// Entry point: open the local cache, then gate on a (possibly cached) session
 async function init(){
-  try{ initSb(); }catch(e){ document.getElementById('auth-msg').textContent=e.message; document.getElementById('auth-overlay').classList.add('show'); hideSplash(); return; }
-  const {data:{session}}=await sb.auth.getSession();
+  initSb();
+  await openLocal();
+  let session=null;
+  try{ const r=await sb.auth.getSession(); session=r&&r.data?r.data.session:null; }catch(e){}
   if(session&&session.user){ USER=session.user; document.getElementById('app').style.display='flex'; await startApp(); }
-  else{ document.getElementById('app').style.display='none'; document.getElementById('auth-overlay').classList.add('show'); hideSplash(); }
+  else{
+    // Offline & never signed in on this device → can't reach login; still show it
+    document.getElementById('app').style.display='none';
+    document.getElementById('auth-overlay').classList.add('show'); hideSplash();
+    if(!navigator.onLine) authMsg('You are offline. Connect to the internet for the first sign-in.');
+  }
 }
 function authMsg(t){const e=document.getElementById('auth-msg');if(e)e.textContent=t;}
 function authCreds(){
@@ -1083,8 +1175,13 @@ function useReadyAccount(){
   doLogin();
 }
 async function doLogout(){
-  if(!confirm('Log out of Fast Bill?')) return;
-  await sb.auth.signOut();
+  const pend=await pendingCount();
+  if(pend>0&&!navigator.onLine){ if(!confirm(pend+' change(s) are not yet synced and will be lost if you log out offline. Log out anyway?')) return; }
+  else if(!confirm('Log out of Fast Bill?')) return;
+  if(navigator.onLine) await syncNow();
+  for(const s of DATA_STORES){ await lClear(s); }
+  await lClear('settings'); await lClear('_deletes');
+  try{ await sb.auth.signOut(); }catch(e){}
   location.reload();
 }
 
@@ -1133,10 +1230,11 @@ async function postAccountTxn(accId,amount,type,ref,note){
 }
 
 async function loadSettings(){
-  const {data,error}=await sb.from('settings').select('*').maybeSingle();
-  if(!error&&data){
-    const {owner,updated_at,...rest}=data;
-    // keep defaults for any null columns
+  // Local cache first
+  const local=await lGetAll('settings');
+  const rec=local.find(x=>x.k==='main');
+  if(rec&&rec.value){
+    const {owner,updated_at,...rest}=rec.value;
     Object.keys(rest).forEach(k=>{if(rest[k]==null)delete rest[k];});
     ST.settings={...ST.settings,...rest};
   }
@@ -1151,8 +1249,9 @@ async function saveSettings(){
   ST.settings.gst=gstVal===''?ST.settings.gst:Math.max(0,+gstVal);
   ST.settings.gstin=document.getElementById('s-gstin').value;
   const s=ST.settings;
-  const {error}=await sb.from('settings').upsert({owner:USER.id,brand:s.brand,name:s.name,address:s.address,phone:s.phone,gst:s.gst,gstin:s.gstin});
-  if(error){showToast('Save failed: '+error.message,'e');return;}
+  const row={owner:USER?USER.id:null,brand:s.brand,name:s.name,address:s.address,phone:s.phone,gst:s.gst,gstin:s.gstin};
+  await lPut('settings',{k:'main',value:row});               // local first
+  if(navigator.onLine&&sb&&USER){ try{ await sb.from('settings').upsert(row); }catch(e){} }
   showToast('Settings saved');
   populateSettingsForm();
 }
@@ -2145,15 +2244,29 @@ function inventoryValue(){
   return {raw,fin,total:raw+fin};
 }
 // Profit & Loss for a date range [from,to] (Date objects, inclusive)
+// Labour cost for a period = Σ (pay-days × daily wage) from attendance
+function labourCost(from,to){
+  let sum=0;
+  ST.staff.forEach(s=>{
+    const rate=s.wage_type==='DAILY'?(+s.daily_rate||0):((+s.monthly_salary||0)/30);
+    const recs=ST.attendance.filter(a=>{const d=new Date(a.date);return a.staff_id===s.id&&d>=from&&d<=to;});
+    const payDays=recs.reduce((n,a)=>n+(a.status==='P'?1:a.status==='H'?0.5:0),0);
+    sum+=payDays*rate;
+  });
+  return sum;
+}
 function computePnL(from,to){
   const inRange=d=>{const t=new Date(d);return t>=from&&t<=to;};
   const sales=ST.sales.filter(s=>inRange(s.date));
   const revenue=sales.reduce((s,x)=>s+saleNetRevenue(x),0);
-  const cogs=sales.reduce((s,x)=>s+saleCost(x),0);
-  const gross=revenue-cogs;
+  const cogs=sales.reduce((s,x)=>s+saleCost(x),0);   // Recipe × material price (of items sold)
+  const labour=labourCost(from,to);                   // Attendance × wage
   const expenses=ST.expenses.filter(e=>inRange(e.date)).reduce((s,e)=>s+(+e.amount||0),0);
-  const net=gross-expenses;
-  return {orders:sales.length,revenue,cogs,gross,expenses,net,margin:revenue>0?gross/revenue*100:0,sales};
+  const purchases=ST.purchases.filter(p=>inRange(p.date)).reduce((s,p)=>s+(+p.total||0),0);
+  const gross=revenue-cogs-labour;                    // Cost = COGS + labour
+  const net=gross-expenses;                           // minus running expenses
+  return {orders:sales.length,revenue,cogs,labour,gross,expenses,purchases,net,
+          margin:revenue>0?gross/revenue*100:0,sales};
 }
 
 // ==================== EXPENSES ====================
@@ -2253,15 +2366,15 @@ function renderReports(){
   body.innerHTML=`
     <div class="card" style="margin:8px 12px">
       <h3>Profit & Loss — ${label}</h3>
-      ${line('Orders', r.orders)}
-      ${line('Revenue (net of GST)','₹'+fmt(r.revenue))}
-      ${line('− Cost of goods (COGS)','₹'+fmt(r.cogs),'text-red')}
+      ${line('Sales revenue (net of GST)','₹'+fmt(r.revenue))}
+      ${line('− Material cost (recipe)','₹'+fmt(r.cogs),'text-red')}
+      ${line('− Labour (attendance × wage)','₹'+fmt(r.labour),'text-red')}
       <div class="divider"></div>
-      ${line('Gross profit','₹'+fmt(r.gross), r.gross>=0?'text-green':'text-red')}
-      ${line('Gross margin', r.margin.toFixed(1)+'%')}
+      ${line('Gross profit ('+r.margin.toFixed(1)+'%)','₹'+fmt(r.gross), r.gross>=0?'text-green':'text-red')}
       ${line('− Expenses','₹'+fmt(r.expenses),'text-red')}
       <div class="divider"></div>
-      ${line('Net profit','₹'+fmt(r.net), r.net>=0?'text-green':'text-red', true)}
+      ${line('NET PROFIT','₹'+fmt(r.net), r.net>=0?'text-green':'text-red', true)}
+      <div style="font-size:11px;color:var(--ink-3);margin-top:6px">${r.orders} orders · Stock purchased this period ₹${fmt(r.purchases)}</div>
     </div>
     <div class="stats-grid">
       <div class="stat-card"><div class="val">₹${fmt(inv.total)}</div><div class="lbl">Inventory value</div></div>
@@ -2283,8 +2396,9 @@ function printPnL(){
     <div style="text-align:center;margin-bottom:10px"><div style="font-size:18px;font-weight:700">${ST.settings.name}</div><div style="font-size:13px">Profit & Loss — ${label}</div><div style="font-size:11px;color:#555">${from.toLocaleDateString('en-IN')} – ${to.toLocaleDateString('en-IN')}</div></div>
     <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:8px 0;font-size:13px">
       ${row('Orders', r.orders)}
-      ${row('Revenue (net of GST)','₹'+fmt(r.revenue))}
-      ${row('Cost of goods sold','− ₹'+fmt(r.cogs))}
+      ${row('Sales revenue (net of GST)','₹'+fmt(r.revenue))}
+      ${row('Material cost (recipe)','− ₹'+fmt(r.cogs))}
+      ${row('Labour (attendance × wage)','− ₹'+fmt(r.labour))}
       ${row('Gross profit ('+r.margin.toFixed(1)+'%)','₹'+fmt(r.gross))}
       ${row('Expenses','− ₹'+fmt(r.expenses))}
     </div>
@@ -3290,10 +3404,15 @@ function exportData(){
   a.click();
 }
 async function resetDB(){
-  showToast('Clearing cloud data…');
-  const stores=['sales','receivables','account_txns','open_orders','purchases','supplier_payments','recipes','production_logs','attendance','advances','products','raw_materials','suppliers','customers','staff','accounts','categories','tables'];
-  for(const s of stores){ await sb.from(s).delete().gte('id',0); }
-  await sb.from('settings').delete().eq('owner',USER.id);
+  showToast('Clearing data…');
+  // local
+  for(const s of DATA_STORES){ await lClear(s); }
+  await lClear('settings'); await lClear('_deletes');
+  // cloud (best-effort)
+  if(navigator.onLine&&sb&&USER){
+    for(const s of DATA_STORES){ try{ await sb.from(s).delete().gte('id',0); }catch(e){} }
+    try{ await sb.from('settings').delete().eq('owner',USER.id); }catch(e){}
+  }
   showToast('All data reset. Reloading…');
   setTimeout(()=>location.reload(),1200);
 }
