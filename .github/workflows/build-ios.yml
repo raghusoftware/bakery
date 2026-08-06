@@ -1,0 +1,68 @@
+name: Build iOS (Fast Bill)
+
+# iOS builds need a Mac. This runs on a GitHub-hosted macOS runner.
+# - Without an Apple Developer account it builds an UNSIGNED simulator app
+#   (proves the app compiles for iOS; not installable on a real iPhone).
+# - To get an installable device build (.ipa) you must add signing secrets
+#   (see the "signed-ipa" job notes below) — that requires the paid
+#   Apple Developer Program ($99/yr).
+on:
+  workflow_dispatch:
+
+jobs:
+  simulator:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm install
+
+      - name: Add / sync iOS platform
+        working-directory: app
+        run: |
+          npx cap add ios || npx cap sync ios
+
+      - name: Set app name to Fast Bill
+        working-directory: app
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Fast Bill" ios/App/App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Fast Bill" ios/App/App/Info.plist || true
+
+      - name: CocoaPods install
+        working-directory: app/ios/App
+        run: pod install
+
+      - name: Build (iOS Simulator, unsigned)
+        working-directory: app/ios/App
+        run: |
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package simulator .app
+        working-directory: app/ios/App
+        run: |
+          mkdir -p out
+          APP=$(find build/Build/Products -maxdepth 2 -name "App.app" | head -1)
+          cp -R "$APP" out/FastBill.app
+          cd out && zip -ry FastBill-sim.zip FastBill.app
+
+      - name: Upload simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: FastBill-iOS-simulator
+          path: app/ios/App/out/FastBill-sim.zip
+          retention-days: 30
